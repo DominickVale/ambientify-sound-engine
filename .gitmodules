@@ -1,0 +1,3 @@
+[submodule "android/src/main/cpp/include/fmt"]
+	path = android/src/main/cpp/include/fmt
+	url = git@github.com:fmtlib/fmt.git

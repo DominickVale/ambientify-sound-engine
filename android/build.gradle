@@ -1,0 +1,184 @@
+import java.nio.file.Paths
+
+def fmodApiRoot = project.file('./libs/fmod/api').absolutePath
+
+buildscript {
+
+  repositories {
+    google()
+    mavenCentral()
+
+    maven {
+      url "https://plugins.gradle.org/m2/"
+    }
+  }
+  dependencies {
+    classpath 'com.android.tools.build:gradle:4.2.1'
+  }
+}
+
+apply plugin: 'com.android.library'
+
+def getExtOrDefault(name, defaultValue) {
+  return rootProject.ext.has(name) ? rootProject.ext.get(name) : defaultValue
+}
+
+def found = false
+def basePath = projectDir.toPath().normalize()
+
+// Find node_modules inside the example project
+def nodeModulesDir = Paths.get(basePath.getParent().toString(), "example/node_modules")
+def reactNativeDir = Paths.get(nodeModulesDir.toString(), "react-native/android")
+if (nodeModulesDir.toFile().exists() && reactNativeDir.toFile().exists()) {
+  found = true
+}
+
+if (!found) {
+  // Node's module resolution algorithm searches up to the root directory,
+  // after which the base path will be null
+  while (basePath) {
+    nodeModulesDir = Paths.get(basePath.toString(), "node_modules")
+    reactNativeDir = Paths.get(nodeModulesDir.toString(), "react-native/android")
+    if (nodeModulesDir.toFile().exists() && reactNativeDir.toFile().exists()) {
+      found = true
+      break;
+    }
+    basePath = basePath.getParent()
+  }
+}
+
+if (!found) {
+  throw new GradleException(
+    "${project.name}: unable to locate React Native android sources. " +
+      "Ensure you have you installed React Native as a dependency in your project and try again.")
+}
+
+def nodeModulesPath = nodeModulesDir.toString().replace("\\", "/")
+def reactNativePath = reactNativeDir.toString().replace("\\", "/")
+
+
+android {
+  compileSdkVersion getExtOrDefault('compileSdkVersion', 28)
+
+  defaultConfig {
+    minSdkVersion getExtOrDefault('minSdkVersion', 16)
+    targetSdkVersion getExtOrDefault('targetSdkVersion', 28)
+
+    buildTypes {
+      debug {
+        buildConfigField("String[]", "FMOD_LIBS", "{ \"fmodL\" }")
+        externalNativeBuild {
+          cmake {
+            cppFlags "-fexceptions", "-frtti", "-std=c++1y", "-DONANDROID"
+            abiFilters 'x86', 'x86_64', 'armeabi-v7a', 'arm64-v8a'
+            arguments '-DANDROID_STL=c++_shared', "-DNODE_MODULES_DIR=${nodeModulesPath}", "-DFMOD_API_ROOT=${fmodApiRoot}", '-DFMOD_LIB_SUFFIX=L'
+          }
+        }
+      }
+      release {
+        buildConfigField("String[]", "FMOD_LIBS", "{ \"fmod\" }")
+        externalNativeBuild {
+          cmake {
+            cppFlags "-fexceptions", "-frtti", "-std=c++1y", "-DONANDROID"
+            abiFilters 'x86', 'x86_64', 'armeabi-v7a', 'arm64-v8a'
+            arguments '-DANDROID_STL=c++_shared', "-DNODE_MODULES_DIR=${nodeModulesPath}", "-DFMOD_API_ROOT=${fmodApiRoot}", '-DFMOD_LIB_SUFFIX='
+          }
+        }
+      }
+    }
+
+    externalNativeBuild {
+      cmake {
+        cppFlags ''
+        abiFilters 'x86', 'x86_64', 'armeabi-v7a', 'arm64-v8a'
+        arguments '-DANDROID_STL=c++_shared', "-DNODE_MODULES_DIR=${nodeModulesPath}", "-DFMOD_API_ROOT=${fmodApiRoot}", '-DFMOD_LIB_SUFFIX=L'
+      }
+    }
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_1_8
+    targetCompatibility JavaVersion.VERSION_1_8
+  }
+
+  lintOptions {
+    abortOnError false
+    disable 'GradleCompatible'
+  }
+
+  externalNativeBuild {
+    cmake {
+      path 'CMakeLists.txt'
+      version '3.18.1'
+    }
+  }
+
+  packagingOptions {
+    excludes = ["**/libc++_shared.so", "**/libjsi.so", "**/libreactnativejni.so", "**/libfbjni.so", "META-INF/MANIFEST.MF"]
+  }
+
+  configurations {
+    extractJNI
+    extractHeaders
+  }
+}
+
+repositories {
+  mavenCentral()
+  mavenLocal()
+  google()
+
+  maven {
+    url reactNativePath
+    name 'React Native sources'
+  }
+}
+
+dependencies {
+  //noinspection GradleDynamicVersion
+  implementation 'com.facebook.react:react-native:+'
+  //noinspection GradleDynamicVersion
+  extractHeaders("com.facebook.fbjni:fbjni:+:headers")
+  //noinspection GradleDynamicVersion
+  extractJNI("com.facebook.fbjni:fbjni:+")
+
+  implementation files(fmodApiRoot + '/core/lib/fmod.jar')
+
+  def rnAAR = fileTree(reactNativePath).matching({ it.include "**/**/*.aar" }).singleFile
+  extractJNI(files(rnAAR))
+}
+
+task extractAARHeaders {
+  doLast {
+    configurations.extractHeaders.files.each {
+      def file = it.absoluteFile
+      copy {
+        from zipTree(file)
+        into "$buildDir/$file.name"
+        include "**/*.h"
+      }
+    }
+  }
+}
+
+task extractJNIFiles {
+  doLast {
+    configurations.extractJNI.files.each {
+      def file = it.absoluteFile
+
+      copy {
+        from zipTree(file)
+        into "$buildDir/$file.name"
+        include "jni/**/*"
+      }
+    }
+  }
+}
+extractJNIFiles.mustRunAfter extractAARHeaders
+
+tasks.whenTaskAdded { task ->
+  if (task.name == 'externalNativeBuildDebug' || task.name == 'externalNativeBuildRelease') {
+    task.dependsOn(extractAARHeaders)
+    task.dependsOn(extractJNIFiles)
+  }
+}
