@@ -16,6 +16,7 @@ namespace ambientify {
             if (propName == "isReady") {
                 return {soundEngine->isEngineReady};
             }
+
             if (propName == "setStatusAsync") {
                 return a_utils::createFunc(
                         runtime,
@@ -181,6 +182,42 @@ namespace ambientify {
                         });
             }
 
+            if (propName == "playAll") {
+                return a_utils::createFunc(
+                        runtime,
+                        funcName.c_str(),
+                        0,
+                        [this](jsi::Runtime &runtime,
+                               const jsi::Value &,
+                               const jsi::Value *arguments,
+                               size_t count) -> jsi::Value {
+                            try {
+                                soundEngine->playAll();
+                            } catch (const commons::ASoundEngineException &e) {
+                                jsi::detail::throwJSError(runtime, e.what());
+                            }
+                            return jsi::Value::undefined();
+                        });
+            }
+
+            if (propName == "stopAll") {
+                return a_utils::createFunc(
+                        runtime,
+                        funcName.c_str(),
+                        0,
+                        [this](jsi::Runtime &runtime,
+                               const jsi::Value &,
+                               const jsi::Value *arguments,
+                               size_t count) -> jsi::Value {
+                            try {
+                                soundEngine->stopAll();
+                            } catch (const commons::ASoundEngineException &e) {
+                                jsi::detail::throwJSError(runtime, e.what());
+                            }
+                            return jsi::Value::undefined();
+                        });
+            }
+
             if (propName == "stopChannel") {
                 return a_utils::createFunc(
                         runtime,
@@ -250,6 +287,7 @@ namespace ambientify {
                             return true;
                         });
             }
+
             if (propName == "toggleChannelPlayback") {
                 return a_utils::createFunc(
                         runtime,
@@ -269,6 +307,7 @@ namespace ambientify {
                             return true;
                         });
             }
+
             if (propName == "getSerializedStateAsync") {
                 return a_utils::createFunc(
                         runtime,
@@ -474,9 +513,7 @@ namespace ambientify {
             }
         }
 
-        return
-
-                jsi::Value::undefined();
+        return jsi::Value::undefined();
     }
 
     void SoundEngineHostObject::set(jsi::Runtime &, const jsi::PropNameID &name, const jsi::Value &value) {

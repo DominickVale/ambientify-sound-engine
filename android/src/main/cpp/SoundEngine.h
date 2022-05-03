@@ -43,6 +43,9 @@ namespace ambientify {
         static void playChannel(int channelId);
         static void stopChannel(int channelId);
 
+        static void playAll();
+        static void stopAll();
+
         static void loadChannelStatus(int channelId, const std::shared_ptr<std::map<std::string, std::any>>& newStatus);
 
         static void setChannelVolume(int channelId, float volume, float pan);

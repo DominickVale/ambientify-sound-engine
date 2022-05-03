@@ -127,6 +127,7 @@ namespace ambientify {
         const bool &isPlaying = _isPlaying;
         const bool &randomizationEnabled = _randomizationEnabled;
         const bool &isMuted = _isMuted;
+        const bool &didJustPause = _didJustPause;
 
     private:
         FMOD::System *system{};
@@ -143,6 +144,7 @@ namespace ambientify {
         bool _randomizationEnabled = false;
         ChannelRandomizationDataSettings _rSettings {1, 1};
         int _currRandomTimeframe = 0;
+        bool _didJustPause = false;
         std::vector<GeneratedRandomizationData> _rTimeframes;
         std::chrono::system_clock::time_point _rT_A;
         std::chrono::system_clock::time_point _rT_B;

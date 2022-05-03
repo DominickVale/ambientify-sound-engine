@@ -77,9 +77,11 @@ void ambientify::EngineChannel::prepare() {
     _result = _sound->getLength(&_durationMs, FMOD_TIMEUNIT_MS);
     ERRCHECK(_result);
     // @todo: implement function that generates the minimum amount of minutes and times
-    _rSettings.minutes = ceil(_durationMs / 60000);
-    _rSettings.minutes = _rSettings.minutes > 0 ? _rSettings.minutes : 1;
-    _rSettings.times = (_rSettings.minutes * 60000) / _durationMs;
+    if(!randomizationEnabled) {
+        _rSettings.minutes = ceil(_durationMs / 60000);
+        _rSettings.minutes = _rSettings.minutes > 0 ? _rSettings.minutes : 1;
+        _rSettings.times = (_rSettings.minutes * 60000) / _durationMs;
+    }
     _result = _fchannel->setVolume(_isCrossfading ? 0 : _volume);
     ERRCHECK(_result);
     _updateCfDuration();
@@ -90,6 +92,7 @@ void ambientify::EngineChannel::prepare() {
     _result = _fchannel->setCallback(_channelsCallback);
     ERRCHECK(_result);
     _didJustFinish = false;
+    _didJustPause = false;
     _shouldPlay = false;
     _isLoaded = true;
     _isLoading = false;
@@ -98,6 +101,10 @@ void ambientify::EngineChannel::prepare() {
 
 void ambientify::EngineChannel::play() {
     if (_isPlaying && !randomizationEnabled) return;
+    if (randomizationEnabled && _didJustPause) {
+        _didJustPause = false;
+        return;
+    }
     if (!_isLoaded || _isLoading) {
         throw ambientify::commons::ASoundEngineException("Sound is not yet loaded");
     }
@@ -105,6 +112,7 @@ void ambientify::EngineChannel::play() {
     ERRCHECK(_result);
     if (!isCrossfading && !_randomizationEnabled) setVolume(_volume, _pan);
     _isPlaying = true;
+    _didJustPause = false;
     neverStarted = false;
     if (_crossfadeEnabled && (!_secondaryChannel || !_secondaryChannel->_isLoaded)) {
         loadSecondary();
@@ -132,6 +140,7 @@ void ambientify::EngineChannel::stop() {
             _isLoading = false;
         }
     }
+    _didJustPause = true;
     _isPlaying = false;
     _isCrossfading = false;
 }
@@ -262,7 +271,8 @@ void ambientify::EngineChannel::_updateSerializedStatus() {
     _serializedStatus.isLoaded = _isLoaded;
     _serializedStatus.isLoading = _isLoading;
     // isPlaying should be true if either parent of secondary channels are playing
-    _serializedStatus.isPlaying = _crossfadeEnabled ? _isPlaying || (_secondaryChannel && _secondaryChannel->_isPlaying) : _randomizationEnabled || _isPlaying;
+    _serializedStatus.isPlaying = _crossfadeEnabled ? _isPlaying || (_secondaryChannel && _secondaryChannel->_isPlaying) :
+                                  (_randomizationEnabled && !_didJustPause) || _isPlaying;
     _serializedStatus.didJustFinish = _didJustFinish;
     _serializedStatus.pan = _pan;
     _serializedStatus.pitch = _pitch;
@@ -354,15 +364,14 @@ void ambientify::EngineChannel::_updateSyncPoints() {
 void ambientify::EngineChannel::setRandomizationSettings(const std::shared_ptr<ChannelRandomizationDataSettings> &newSettings) {
     // copy the new values
     _rSettings = *newSettings;
-    if ((_durationMs / 1000) * _rSettings.minutes * _rSettings.times)
-        _generateRandomTimeframes();
+    _generateRandomTimeframes();
 }
 
 void ambientify::EngineChannel::runNextRandomFrame() {
     using namespace std::chrono;
-    if (_rTimeframes.empty()) return;
+    if (_rTimeframes.empty() || _didJustPause) return;
     if (_rT_B - _rT_A > milliseconds(_rTimeframes[_currRandomTimeframe].delayMs)) {
-        if (_currRandomTimeframe < _rTimeframes.size() - 1) {
+        if (_currRandomTimeframe < _rTimeframes.size()) {
             const auto[delay, volume, pan, pitch] = _rTimeframes[_currRandomTimeframe];
             _result = _fchannel->setVolume(volume);
             ERRCHECK(_result);
@@ -449,7 +458,10 @@ bool ambientify::EngineChannel::setMuted(bool muted) {
 
 void ambientify::EngineChannel::reset() {
     _noUnload = false;
-    if (isLoaded) unload();
+    if (_isLoaded) unload();
+    _isLoaded = false;
+    _isLoading = false;
+    _isPlaying = false;
     _crossfadeEnabled = false;
     _isMuted = false;
     _volume = 0.75;
@@ -458,6 +470,7 @@ void ambientify::EngineChannel::reset() {
     _isCrossfading = false;
     _cfPercentageStart = 0.75;
     _didJustFinish = false;
+    _didJustPause = false;
     _randomizationEnabled = false;
     _currRandomTimeframe = 0;
     _fchannel = nullptr;

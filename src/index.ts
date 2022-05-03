@@ -48,6 +48,12 @@ const AmbientifySoundEngine = {
   isReady(): boolean {
     return getInstance().isReady;
   },
+  stopAll(): boolean {
+    return getInstance().stopAll();
+  },
+  playAll(): boolean {
+    return getInstance().playAll();
+  },
   /*
     @return number the index of the newly created channel
   */

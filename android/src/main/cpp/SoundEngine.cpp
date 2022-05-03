@@ -119,7 +119,7 @@ int ambientify::SoundEngine::createChannel(const std::string *path) {
 
 bool ambientify::SoundEngine::toggleChannelPlayback(int channelId) {
     const auto ch = getChannelById(channelId);
-    if (ch->isPlaying || (ch->crossfadeEnabled && ch->getSecondaryInstance()->isPlaying)) {
+    if (ch->isPlaying || (ch->crossfadeEnabled && ch->getSecondaryInstance()->isPlaying) || (ch->randomizationEnabled && !ch->didJustPause)) {
         ch->stop();
     } else {
         playChannel(channelId);
@@ -205,4 +205,20 @@ bool ambientify::SoundEngine::toggleChannelMuted(int channelId) {
 void ambientify::SoundEngine::resetChannel(int channelId) {
     const auto ch = getChannelById(channelId);
     ch->reset();
+}
+
+void ambientify::SoundEngine::playAll() {
+    for (const auto &ch : channels) {
+        if (ch->isLoaded) {
+            ch->play();
+        }
+    }
+}
+
+void ambientify::SoundEngine::stopAll() {
+    for (const auto &ch : channels) {
+        if (ch->isLoaded) {
+            ch->stop();
+        }
+    }
 }
