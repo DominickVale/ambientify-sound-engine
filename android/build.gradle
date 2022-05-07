@@ -121,6 +121,7 @@ android {
     extractJNI
     extractHeaders
   }
+    ndkVersion '21.4.7075529'
 }
 
 repositories {

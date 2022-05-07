@@ -1,6 +1,14 @@
 import { NativeModules } from 'react-native';
 
-export type AmbientifySoundState = {
+export type AmbientifyChannelRandomizationSettings = {
+  times: number;
+  minutes: number;
+  panRange?: [number, number];
+  volumeRange?: [number, number];
+  pitchRange?: [number, number];
+};
+
+export type AmbientifyChannelState = {
   currentFilePath: string | undefined;
   id: number;
   durationMs: number;
@@ -17,14 +25,11 @@ export type AmbientifySoundState = {
   noUnload: boolean;
   randomizationEnabled: boolean;
   rSettings: AmbientifyChannelRandomizationSettings;
-};
+}
 
-export type AmbientifyChannelRandomizationSettings = {
-  times: number;
-  minutes: number;
-  panRange?: [number, number];
-  volumeRange?: [number, number];
-  pitchRange?: [number, number];
+export type AmbientifySoundState = {
+  masterVolume: number;
+  sounds: Array<AmbientifyChannelState>;
 };
 
 function install() {
@@ -106,12 +111,15 @@ const AmbientifySoundEngine = {
     //@todo replace -2 with a different overridden method
     return getInstance().setChannelVolume(channelID, volume, pan || -2);
   },
-  async getStatusAsync(): Promise<Array<AmbientifySoundState>> {
+  setMasterVolume(volume: number) {
+    return getInstance().setMasterVolume(volume);
+  },
+  async getStatusAsync(): Promise<AmbientifySoundState> {
     return getInstance().getSerializedStateAsync();
   },
   async setStatusAsync(
     channelId: number,
-    newStatus: Partial<Omit<AmbientifySoundState, 'id'>>
+    newStatus: Partial<Omit<AmbientifyChannelState, 'id'>>
   ): Promise<boolean> {
     return getInstance().setStatusAsync(channelId, newStatus);
   },

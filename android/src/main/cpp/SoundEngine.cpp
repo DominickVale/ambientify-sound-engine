@@ -82,6 +82,11 @@ ambientify::SoundEngine::SoundEngine() {
 
     result = system->init(constants::MAX_CHANNELS * 2 + 2, FMOD_INIT_NORMAL, nullptr);
     ERRCHECK(result);
+    FMOD::ChannelGroup *masterGroup;
+    result = system->getMasterChannelGroup(&masterGroup);
+    ERRCHECK(result);
+    result = masterGroup->setVolume(1.0f);
+    ERRCHECK(result);
     std::thread updateThread(&SoundEngine::update, this);
     updateThread.detach();
     LOG_DEBUG("SoundEngine initialized");
@@ -130,6 +135,14 @@ bool ambientify::SoundEngine::toggleChannelPlayback(int channelId) {
 void ambientify::SoundEngine::setChannelVolume(int channelId, float volume, float pan) {
     const auto ch = getChannelById(channelId);
     ch->setVolume(volume, pan);
+}
+
+void ambientify::SoundEngine::setMasterVolume(float volume) {
+    FMOD::ChannelGroup *masterGroup;
+    result = system->getMasterChannelGroup(&masterGroup);
+    ERRCHECK(result);
+    result = masterGroup->setVolume(volume);
+    ERRCHECK(result);
 }
 
 void ambientify::SoundEngine::loadChannel(int channelId, const std::string *path) {
@@ -221,4 +234,14 @@ void ambientify::SoundEngine::stopAll() {
             ch->stop();
         }
     }
+}
+
+float ambientify::SoundEngine::getMasterVolume() {
+    float vol;
+    FMOD::ChannelGroup *masterGroup;
+    result = system->getMasterChannelGroup(&masterGroup);
+    ERRCHECK(result);
+    result = masterGroup->getVolume(&vol);
+    ERRCHECK(result);
+    return vol;
 }

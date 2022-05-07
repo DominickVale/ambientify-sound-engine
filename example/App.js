@@ -9,12 +9,12 @@ import {
   Switch,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
-import AmbientifySoundEngine, {AmbientifySoundState} from '../src';
-import {Picker} from '@react-native-picker/picker';
+import AmbientifySoundEngine from '../src';
+import { Picker } from '@react-native-picker/picker';
 import MultiSlider, {
   MultiSliderProps,
 } from '@ptomasroos/react-native-multi-slider';
-import {useRef} from 'react';
+import { useRef } from 'react';
 import useDebounceFn from 'ahooks/lib/useDebounceFn';
 
 const soundFiles = [
@@ -30,7 +30,7 @@ const soundFiles = [
     label: 'Bathroom fan (ogg)',
     value: 'file:///android_asset/sounds/Bathroom_fan.ogg',
   },
-  {label: 'drumloop (wav)', value: 'file:///android_asset/sounds/drumloop.wav'},
+  { label: 'drumloop (wav)', value: 'file:///android_asset/sounds/drumloop.wav' },
   {
     label: 'Sing_bowl_meditation (ogg)',
     value: 'file:///android_asset/sounds/Sing_bowl_meditation.ogg',
@@ -48,7 +48,7 @@ export default function App() {
   const [serializedState, setSerializedState] = React.useState(null);
   const [soundsCount, setSoundsCount] = React.useState(0);
   const [multiMode, setMultiMode] = React.useState(false);
-  const firstSoundState = serializedState?.[0];
+  const firstSoundState = serializedState?.sounds?.[0];
 
   const playedRef = React.useRef([]);
   const multiModeRef = React.useRef(false);
@@ -60,7 +60,7 @@ export default function App() {
       if (AmbientifySoundEngine.isReady()) {
         const newState = await AmbientifySoundEngine.getStatusAsync();
         setSerializedState(newState);
-        setSoundsCount(newState?.length || 0);
+        setSoundsCount(newState?.sounds?.length || 0);
       }
     }, 100);
     return () => clearInterval(interval);
@@ -74,8 +74,8 @@ export default function App() {
   const onMultiSwitch = () => {
     multiModeRef.current = !multiMode;
     setMultiMode(!multiMode);
-    if (serializedState?.length > 0) {
-      serializedState.forEach(async (ch, id) => {
+    if (serializedState?.sounds?.length > 0) {
+      serializedState.sounds.forEach(async (ch, id) => {
         if (ch.isLoaded) {
           AmbientifySoundEngine.unloadChannel(id);
         }
@@ -83,10 +83,10 @@ export default function App() {
     }
   };
 
-  const {run: setRandomSettings} = useDebounceFn(
+  const { run: setRandomSettings } = useDebounceFn(
     (v, rangeType) => {
       AmbientifySoundEngine.setRandomizationSettings(0, {
-        ...serializedState[0].rSettings,
+        ...serializedState.sounds[0].rSettings,
         times: 6,
         minutes: 1,
         [rangeType]: [...v],
@@ -100,8 +100,8 @@ export default function App() {
   return (
     <ScrollView>
       <View style={styles.container}>
-        <ScrollView style={{height: 200}} nestedScrollEnabled>
-          <Text style={{fontSize: 12}}>
+        <ScrollView style={{ height: 200 }} nestedScrollEnabled>
+          <Text style={{ fontSize: 12 }}>
             Status:
             {serializedState !== null
               ? JSON.stringify(serializedState, null, 2)
@@ -112,14 +112,14 @@ export default function App() {
         <Picker
           onValueChange={value => setFile(value)}
           selectedValue={file}
-          style={{flex: 1, width: '100%'}}
+          style={{ flex: 1, width: '100%' }}
           //@ts-ignore
           options={soundFiles}>
-          {soundFiles.map(({value, label}) => (
+          {soundFiles.map(({ value, label }) => (
             <Picker.Item key={value} label={label} value={value} />
           ))}
         </Picker>
-        <View style={{flex: 1, flexDirection: 'row', alignItems: 'center'}}>
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
           <Text>Multi mode?</Text>
           <Switch value={multiMode} onChange={onMultiSwitch} />
         </View>
@@ -135,7 +135,7 @@ export default function App() {
               }}
               style={styles.button}>
               <Text style={styles.buttonTxt}>
-                {serializedState?.[0]
+                {serializedState?.sounds?.[0]
                   ? firstSoundState.current?.currentFilePath
                     ? 'Reload sound'
                     : ' Load sound'
@@ -168,13 +168,13 @@ export default function App() {
               onPress={() => {
                 AmbientifySoundEngine.setCrossfadingAsync(
                   0,
-                  !serializedState?.[0].crossfadeEnabled,
+                  !serializedState?.sounds?.[0].crossfadeEnabled,
                 );
               }}
               style={styles.button}>
               <Text style={styles.buttonTxt}>
                 Toggle Crossfade (
-                {serializedState?.[0].crossfadeEnabled ? 'on' : ' off'})
+                {serializedState?.sounds?.[0].crossfadeEnabled ? 'on' : ' off'})
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -189,15 +189,15 @@ export default function App() {
               Cf Percentage Start: {firstSoundState?.cfPercentageStart}
             </Text>
             <Slider
-              style={{width: 200, height: 40}}
+              style={{ width: 200, height: 40 }}
               minimumValue={0}
               maximumValue={1}
               value={localVolume}
               step={0.01}
               onValueChange={value => {
                 setLocalCfStart(value);
-                if (serializedState?.[0]) {
-                  serializedState.forEach((ch, id) => {
+                if (serializedState?.sounds?.[0]) {
+                  serializedState.sounds.forEach((ch, id) => {
                     AmbientifySoundEngine.setStatusAsync(id, {
                       cfPercentageStart: value,
                     });
@@ -209,7 +209,7 @@ export default function App() {
               onPress={() => {
                 AmbientifySoundEngine.setRandomizationEnabled(
                   0,
-                  !serializedState?.[0]?.randomizationEnabled,
+                  !serializedState?.sounds?.[0]?.randomizationEnabled,
                 );
               }}
               style={styles.button}>
@@ -225,7 +225,7 @@ export default function App() {
                 setLocalVolumeRange([v[0], v[1]]);
                 setRandomSettings(v, 'volumeRange');
               }}
-              containerStyle={{width: '100%'}}
+              containerStyle={{ width: '100%' }}
               snapped
             />
             <Text>Pan range</Text>
@@ -238,7 +238,7 @@ export default function App() {
                 setLocalPanRange([v[0], v[1]]);
                 setRandomSettings(v, 'panRange');
               }}
-              containerStyle={{width: '100%'}}
+              containerStyle={{ width: '100%' }}
               snapped
             />
             <Text>Pitch range</Text>
@@ -251,7 +251,7 @@ export default function App() {
                 setLocalPitchRange([v[0], v[1]]);
                 setRandomSettings(v, 'pitchRange');
               }}
-              containerStyle={{width: '100%'}}
+              containerStyle={{ width: '100%' }}
               snapped
             />
           </>
@@ -280,15 +280,15 @@ export default function App() {
         )}
         <Text>Volume: {firstSoundState?.volume}</Text>
         <Slider
-          style={{width: 200, height: 40}}
+          style={{ width: 200, height: 40 }}
           minimumValue={0}
           maximumValue={1}
           value={localVolume}
           step={0.01}
           onValueChange={value => {
             setLocalVolume(value);
-            if (serializedState?.[0]) {
-              serializedState.forEach((ch, id) => {
+            if (serializedState?.sounds?.[0]) {
+              serializedState.sounds.forEach((ch, id) => {
                 AmbientifySoundEngine.setChannelVolume(
                   id,
                   value,
@@ -300,14 +300,14 @@ export default function App() {
         />
         <Text>Pan: {firstSoundState?.pan}</Text>
         <Slider
-          style={{width: 200, height: 40}}
+          style={{ width: 200, height: 40 }}
           minimumValue={-1}
           maximumValue={1}
           value={localPan}
           step={0.1}
           onValueChange={value => {
             setLocalPan(value);
-            serializedState.forEach((_, id) => {
+            serializedState.sounds.forEach((_, id) => {
               AmbientifySoundEngine.setChannelVolume(
                 id,
                 firstSoundState?.volume || 1,
@@ -318,7 +318,7 @@ export default function App() {
         />
         <TouchableOpacity
           onPress={() => {
-            serializedState.forEach((_, id) => {
+            serializedState.sounds.forEach((_, id) => {
               AmbientifySoundEngine.toggleChannelMuted(id);
             });
           }}

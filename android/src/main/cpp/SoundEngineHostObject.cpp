@@ -271,7 +271,7 @@ namespace ambientify {
                 return a_utils::createFunc(
                         runtime,
                         funcName.c_str(),
-                        1,
+                        3,
                         [this](jsi::Runtime &runtime,
                                const jsi::Value &,
                                const jsi::Value *arguments,
@@ -280,7 +280,26 @@ namespace ambientify {
                                 const auto channelId = static_cast<int>(arguments[0].getNumber());
                                 const auto volume = static_cast<float>(arguments[1].getNumber());
                                 const auto pan = static_cast<float>(arguments[2].getNumber());
-                                SoundEngine::setChannelVolume(channelId, volume, pan);
+                                soundEngine->setChannelVolume(channelId, volume, pan);
+                            } catch (const commons::ASoundEngineException &e) {
+                                jsi::detail::throwJSError(runtime, e.what());
+                            }
+                            return true;
+                        });
+            }
+
+            if (propName == "setMasterVolume") {
+                return a_utils::createFunc(
+                        runtime,
+                        funcName.c_str(),
+                        1,
+                        [this](jsi::Runtime &runtime,
+                               const jsi::Value &,
+                               const jsi::Value *arguments,
+                               size_t count) -> jsi::Value {
+                            try {
+                                const auto volume = static_cast<float>(arguments[0].getNumber());
+                                soundEngine->setMasterVolume(volume);
                             } catch (const commons::ASoundEngineException &e) {
                                 jsi::detail::throwJSError(runtime, e.what());
                             }
@@ -299,7 +318,7 @@ namespace ambientify {
                                size_t count) -> jsi::Value {
                             try {
                                 const auto channelId = static_cast<int>(arguments[0].getNumber());
-                                const bool isNowPlaying = SoundEngine::toggleChannelPlayback(channelId);
+                                const bool isNowPlaying = soundEngine->toggleChannelPlayback(channelId);
                                 return jsi::Value(isNowPlaying);
                             } catch (const commons::ASoundEngineException &e) {
                                 jsi::detail::throwJSError(runtime, e.what());
@@ -323,6 +342,7 @@ namespace ambientify {
                                             runtimeExecutor([&, promise](jsi::Runtime &rt3) {
                                                 if (soundEngine->isEngineReadyFn()) {
                                                     if (!SoundEngine::channels.empty()) {
+                                                        auto jsiState = jsi::Object(rt3);
                                                         auto array = jsi::Array(rt3, SoundEngine::channels.size());
                                                         try {
                                                             // WARNING: this code makes me vomit my goddamn soul away but i'm too lazy to implement a converting solution
@@ -375,7 +395,9 @@ namespace ambientify {
                                                         } catch (const commons::ASoundEngineException &e) {
                                                             promise->reject(e.what());
                                                         }
-                                                        promise->resolve(std::move(array));
+                                                        jsiState.setProperty(rt3, "sounds", array);
+                                                        jsiState.setProperty(rt3, "masterVolume", soundEngine->getMasterVolume());
+                                                        promise->resolve(std::move(jsiState));
                                                     }
                                                 }
                                             });

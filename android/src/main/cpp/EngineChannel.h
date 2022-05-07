@@ -51,7 +51,7 @@ namespace ambientify {
                 int id
         ) : system(system),
             _channelsCallback(channelsCallback),
-            _id(id) {};
+            _id(id){};
 
         EngineChannel(
                 FMOD::System *system,

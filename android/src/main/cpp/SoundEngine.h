@@ -14,8 +14,6 @@ namespace ambientify {
 
         ~SoundEngine();
 
-        static std::vector<std::shared_ptr<ambientify::EngineChannel>> channels;
-
         static std::shared_ptr<SoundEngine> GetInstance() {
             if (_instance == nullptr) {
                 _instance = std::shared_ptr<SoundEngine>(new SoundEngine());
@@ -32,35 +30,44 @@ namespace ambientify {
         void update();
 
         int createChannel();
+
         int createChannel(const std::string *path);
 
-        static void loadChannel(int channelId, const std::string *path);
+        void loadChannel(int channelId, const std::string *path);
 
-        static void unloadChannel(int channelId);
+        void unloadChannel(int channelId);
 
-        static bool toggleChannelPlayback(int channelId);
+        bool toggleChannelPlayback(int channelId);
 
-        static void playChannel(int channelId);
-        static void stopChannel(int channelId);
+        void playChannel(int channelId);
 
-        static void playAll();
-        static void stopAll();
+        void stopChannel(int channelId);
 
-        static void loadChannelStatus(int channelId, const std::shared_ptr<std::map<std::string, std::any>>& newStatus);
+        void playAll();
 
-        static void setChannelVolume(int channelId, float volume, float pan);
+        void stopAll();
 
-        static void setChannelCfEnabled(int channelId, bool enabled);
+        void loadChannelStatus(int channelId, const std::shared_ptr<std::map<std::string, std::any>> &newStatus);
 
-        static void setChannelRandomizationEnabled(int channelId, bool enabled);
+        void setChannelVolume(int channelId, float volume, float pan);
 
-        static bool toggleChannelMuted(int channelId);
+        void setMasterVolume(float volume);
 
-        static void setChannelMuted(int channelId, bool muted);
+        float getMasterVolume();
 
-        static void setChannelRandomizationSettings(int channelId, const std::shared_ptr<ChannelRandomizationDataSettings>&);
+        void setChannelCfEnabled(int channelId, bool enabled);
 
-        static void resetChannel(int channelId);
+        void setChannelRandomizationEnabled(int channelId, bool enabled);
+
+        bool toggleChannelMuted(int channelId);
+
+        void setChannelMuted(int channelId, bool muted);
+
+        void setChannelRandomizationSettings(int channelId, const std::shared_ptr<ChannelRandomizationDataSettings> &);
+
+        void resetChannel(int channelId);
+
+        static std::vector<std::shared_ptr<ambientify::EngineChannel>> channels;
 
     private:
         SoundEngine();
