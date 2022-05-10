@@ -33,10 +33,11 @@ void ambientify::EngineChannel::load(const std::string *soundFileName) {
     if (_isSecondary) loopMode = FMOD_LOOP_OFF;
     _isLoading = true;
     _result = system->createStream(soundFileName->c_str(), FMOD_DEFAULT | loopMode, nullptr, &_sound);
-    ERRCHECK(_result);
-    _currentFilePath = *soundFileName;
     // remove if FMOD_NON_BLOCKING
     _isLoaded = _result == FMOD_OK;
+    _isLoading = false;
+    ERRCHECK(_result);
+    _currentFilePath = *soundFileName;
     prepare();
 }
 
