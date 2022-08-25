@@ -80,7 +80,7 @@ ambientify::SoundEngine::SoundEngine() {
     result = system->setSoftwareFormat(24000, FMOD_SPEAKERMODE_STEREO, 2);
     ERRCHECK(result);;
 
-    result = system->init(constants::MAX_CHANNELS * 2 + 2, FMOD_INIT_NORMAL, nullptr);
+    result = system->init(constants::MAX_CHANNELS * 2, FMOD_INIT_NORMAL, nullptr);
     ERRCHECK(result);
     FMOD::ChannelGroup *masterGroup;
     result = system->getMasterChannelGroup(&masterGroup);

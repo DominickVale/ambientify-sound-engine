@@ -18,7 +18,7 @@ void ambientify::EngineChannel::unload() {
     _randomizationEnabled = false;
     _crossfadeEnabled = false;
     stop();
-    if (crossfadeEnabled && _secondaryChannel && _secondaryChannel->_isLoaded) {
+    if (_secondaryChannel && _secondaryChannel->_isLoaded) {
         _secondaryChannel->_noUnload = false;
         _secondaryChannel->unload();
         _secondaryChannel = nullptr;
@@ -128,13 +128,15 @@ void ambientify::EngineChannel::stop() {
         std::scoped_lock lock(_cfMutex);
         _secondaryChannel->stop();
     }
-    if (_isPlaying && _fchannel != nullptr) {
+    if (_fchannel != nullptr) {
         if (_noUnload) {
             _result = _fchannel->setPaused(true);
             ERRCHECK(_result);
             _result = _fchannel->setPosition(0, FMOD_TIMEUNIT_MS);
             ERRCHECK(_result);
         } else {
+            _result = _fchannel->setCallback(nullptr);
+            ERRCHECK(_result);
             _result = _fchannel->stop();
             ERRCHECK(_result);
             _isLoaded = false;
@@ -151,7 +153,7 @@ void ambientify::EngineChannel::onChannelEndCallback() {
     _didJustFinish = true;
     _fchannel = nullptr;
     _sound = nullptr;
-    if (_noUnload) load(&_currentFilePath, false);
+    if (_noUnload && !neverStarted) load(&_currentFilePath, false);
 }
 
 void ambientify::EngineChannel::crossfade(bool inverted) {
@@ -222,7 +224,10 @@ void ambientify::EngineChannel::_updateCrossfade() {
 }
 
 FMOD_RESULT ambientify::EngineChannel::update() {
-    if (!isLoaded) return FMOD_OK;
+    if (!isLoaded){
+        _updateSerializedStatus();
+        return FMOD_OK;
+    }
     if (!_sound && !_isSecondary) {
         _updateSerializedStatus();
         return FMOD_ERR_INVALID_HANDLE;
@@ -246,7 +251,7 @@ FMOD_RESULT ambientify::EngineChannel::update() {
         default:
             break;
     }
-    if (_shouldPlay && _isLoaded && !_isPlaying) play();
+    if (_shouldPlay && !_isPlaying) play();
     if (!_isSecondary) _updateSerializedStatus();
     if (_isCrossfading) _updateCrossfade();
     if (_randomizationEnabled) runNextRandomFrame();
@@ -460,6 +465,7 @@ bool ambientify::EngineChannel::setMuted(bool muted) {
 void ambientify::EngineChannel::reset() {
     _noUnload = false;
     if (_isLoaded) unload();
+    neverStarted = true;
     _isLoaded = false;
     _isLoading = false;
     _isPlaying = false;
