@@ -28,11 +28,13 @@ void ambientify::EngineChannel::unload() {
 void ambientify::EngineChannel::load(const std::string *soundFileName) {
     LOG_DEBUG("Loading channel %d", _id);
     _noUnload = true;
-    FMOD_MODE loopMode = (_crossfadeEnabled || _randomizationEnabled) ? FMOD_LOOP_OFF : FMOD_LOOP_NORMAL;
+    FMOD_MODE loopMode = (_crossfadeEnabled || _randomizationEnabled) ? FMOD_LOOP_OFF
+                                                                      : FMOD_LOOP_NORMAL;
     // if it's a secondary channel disable the loop regardless
     if (_isSecondary) loopMode = FMOD_LOOP_OFF;
     _isLoading = true;
-    _result = system->createStream(soundFileName->c_str(), FMOD_DEFAULT | loopMode, nullptr, &_sound);
+    _result = system->createStream(soundFileName->c_str(), FMOD_DEFAULT | loopMode, nullptr,
+                                   &_sound);
     // remove if FMOD_NON_BLOCKING
     _isLoaded = _result == FMOD_OK;
     _isLoading = false;
@@ -50,7 +52,8 @@ void ambientify::EngineChannel::loadSecondary() {
     if (_crossfadeEnabled && !_isSecondary) {
         if (!_secondaryChannel) {
             auto newId = constants::MAX_CHANNELS + _id + 1;
-            _secondaryChannel = std::make_shared<EngineChannel>(system, _channelsCallback, newId, &_currentFilePath, false);
+            _secondaryChannel = std::make_shared<EngineChannel>(system, _channelsCallback, newId,
+                                                                &_currentFilePath, false);
             _secondaryChannel->_noUnload = true;
         } else {
             if (_secondaryChannel->isLoaded) _secondaryChannel->unload();
@@ -68,7 +71,8 @@ void ambientify::EngineChannel::loadSecondary() {
 void ambientify::EngineChannel::prepare() {
     LOG_DEBUG("Preparing channel %d", _id);
     // only parent channels should have a child. If id > MAX_CHANNELS then it's a child
-    if (!_isSecondary && crossfadeEnabled && (!_secondaryChannel || !_secondaryChannel->isPlaying)) {
+    if (!_isSecondary && crossfadeEnabled &&
+        (!_secondaryChannel || !_secondaryChannel->isPlaying)) {
         loadSecondary();
     }
     _result = system->playSound(_sound, nullptr, true, &_fchannel);
@@ -78,7 +82,7 @@ void ambientify::EngineChannel::prepare() {
     _result = _sound->getLength(&_durationMs, FMOD_TIMEUNIT_MS);
     ERRCHECK(_result);
     // @todo: implement function that generates the minimum amount of minutes and times
-    if(!randomizationEnabled) {
+    if (!randomizationEnabled) {
         _rSettings.minutes = ceil(_durationMs / 60000);
         _rSettings.minutes = _rSettings.minutes > 0 ? _rSettings.minutes : 1;
         _rSettings.times = (_rSettings.minutes * 60000) / _durationMs;
@@ -180,7 +184,9 @@ void ambientify::EngineChannel::_updateCrossfade() {
     using namespace std::chrono;
     if (_cfT_B - _cfT_A > milliseconds(_cfDurationMs / _cfSteps)) {
         std::scoped_lock lock(_cfMutex);
-        if (!_isLoaded || _isLoading || !_secondaryChannel->_isLoaded || _secondaryChannel->_isLoading) return;
+        if (!_isLoaded || _isLoading || !_secondaryChannel->_isLoaded ||
+            _secondaryChannel->_isLoading)
+            return;
         auto now = time_point_cast<milliseconds>(system_clock::now()).time_since_epoch().count();
         auto cfStartMs = time_point_cast<milliseconds>(_cfStartMs).time_since_epoch().count();
         auto t_ms = now - cfStartMs;
@@ -224,7 +230,7 @@ void ambientify::EngineChannel::_updateCrossfade() {
 }
 
 FMOD_RESULT ambientify::EngineChannel::update() {
-    if (!isLoaded){
+    if (!isLoaded) {
         _updateSerializedStatus();
         return FMOD_OK;
     }
@@ -277,7 +283,9 @@ void ambientify::EngineChannel::_updateSerializedStatus() {
     _serializedStatus.isLoaded = _isLoaded;
     _serializedStatus.isLoading = _isLoading;
     // isPlaying should be true if either parent of secondary channels are playing
-    _serializedStatus.isPlaying = _crossfadeEnabled ? _isPlaying || (_secondaryChannel && _secondaryChannel->_isPlaying) :
+    _serializedStatus.isPlaying = _crossfadeEnabled ? _isPlaying || (_secondaryChannel &&
+                                                                     _secondaryChannel->_isPlaying)
+                                                    :
                                   (_randomizationEnabled && !_didJustPause) || _isPlaying;
     _serializedStatus.didJustFinish = _didJustFinish;
     _serializedStatus.pan = _pan;
@@ -292,12 +300,16 @@ void ambientify::EngineChannel::_updateSerializedStatus() {
     _serializedStatus.rSettings = _rSettings;
 }
 
-void ambientify::EngineChannel::loadStatus(const std::shared_ptr<std::map<std::string, std::any>> &newStatus) {
-    if (newStatus->contains("volume")) setVolume(std::any_cast<float>(newStatus->at("volume")), _pan);
+void ambientify::EngineChannel::loadStatus(
+        const std::shared_ptr<std::map<std::string, std::any>> &newStatus) {
+    if (newStatus->contains("volume"))
+        setVolume(std::any_cast<float>(newStatus->at("volume")), _pan);
     if (newStatus->contains("pan")) setVolume(_volume, std::any_cast<float>(newStatus->at("pan")));
     if (newStatus->contains("cfPercentageStart")) {
         const auto newPercentageStart = std::any_cast<float>(newStatus->at("cfPercentageStart"));
-        if (newPercentageStart <= 0.5) throw ambientify::commons::ASoundEngineException("Crossfade percentage start must be greater than 0.5");
+        if (newPercentageStart <= 0.5)
+            throw ambientify::commons::ASoundEngineException(
+                    "Crossfade percentage start must be greater than 0.5");
         _cfPercentageStart = newPercentageStart;
         const auto newCfDuration = _durationMs - (_durationMs * _cfPercentageStart);
         _cfDurationMs = newCfDuration;
@@ -363,11 +375,13 @@ void ambientify::EngineChannel::_updateSyncPoints() {
         _result = _sound->deleteSyncPoint(_cfSyncPoint);
         ERRCHECK(_result);
     }
-    _result = _sound->addSyncPoint(_durationMs * _cfPercentageStart, FMOD_TIMEUNIT_MS, "cf_start", &_cfSyncPoint);
+    _result = _sound->addSyncPoint(_durationMs * _cfPercentageStart, FMOD_TIMEUNIT_MS, "cf_start",
+                                   &_cfSyncPoint);
     ERRCHECK(_result);
 }
 
-void ambientify::EngineChannel::setRandomizationSettings(const std::shared_ptr<ChannelRandomizationDataSettings> &newSettings) {
+void ambientify::EngineChannel::setRandomizationSettings(
+        const std::shared_ptr<ChannelRandomizationDataSettings> &newSettings) {
     // copy the new values
     _rSettings = *newSettings;
     _generateRandomTimeframes();
@@ -376,16 +390,27 @@ void ambientify::EngineChannel::setRandomizationSettings(const std::shared_ptr<C
 void ambientify::EngineChannel::runNextRandomFrame() {
     using namespace std::chrono;
     if (_rTimeframes.empty() || _didJustPause) return;
+    bool _fcplaying;
+    bool _fcpaused;
+    _result = _fchannel->isPlaying(&_fcplaying);
+    ERRCHECK(_result);
+    _result = _fchannel->getPaused(&_fcpaused);
+    ERRCHECK(_result);
+    const bool isFchannelPlaying = !_fcpaused && _fcplaying;
     if (_rT_B - _rT_A > milliseconds(_rTimeframes[_currRandomTimeframe].delayMs)) {
-        if (_currRandomTimeframe < _rTimeframes.size()) {
-            const auto[delay, volume, pan, pitch] = _rTimeframes[_currRandomTimeframe];
-            _result = _fchannel->setVolume(volume);
-            ERRCHECK(_result);
-            _result = _fchannel->setPan(pan);
-            ERRCHECK(_result);
-            _result = _fchannel->setPitch(pitch);
-            ERRCHECK(_result);
-            play();
+        if (_currRandomTimeframe < _rTimeframes.size() - 1) {
+            // Skip the frame if channel is still playing. This happens when the previous
+            // sound was played with a lower pitch and the duration of the sound increased
+            if (!isFchannelPlaying) {
+                const auto[delay, volume, pan, pitch] = _rTimeframes[_currRandomTimeframe];
+                _result = _fchannel->setVolume(volume);
+                ERRCHECK(_result);
+                _result = _fchannel->setPan(pan);
+                ERRCHECK(_result);
+                _result = _fchannel->setPitch(pitch);
+                ERRCHECK(_result);
+                play();
+            }
             _currRandomTimeframe += 1;
         } else if (_randomizationEnabled) {
             _generateRandomTimeframes();
@@ -401,38 +426,42 @@ void ambientify::EngineChannel::_generateRandomTimeframes() {
     const auto d = _durationMs / 1000; // duration in seconds
     const auto n = times; // times
     const auto t = minutes * 60; // max time in seconds
-    const long int totalGapTime = t - d * n;
+    const auto totalGapTime = t - d * n;
     if (totalGapTime <= 0) return;
-    auto randomIntervals = std::vector<int>{};
+    auto randomIntervals = std::vector<float>{};
     float randomSum = 0;
     auto normalizedIntervals = std::vector<int>{};
 
     for (int i = 0; i < n; i++) {
-        const auto r = a_utils::generateRandomFloat(0, totalGapTime);
+        const auto r = a_utils::generateRandomFloat(0, (float) totalGapTime);
         randomIntervals.push_back(r);
         randomSum += r;
     }
 
-    for (const auto &rv : randomIntervals) {
-        const auto s = ((rv / randomSum) * totalGapTime);
+    for (const auto &rv: randomIntervals) {
+        const auto s = ((rv / randomSum) * totalGapTime) * 1000;
         normalizedIntervals.push_back((int) s);
     }
 
     std::vector<GeneratedRandomizationData> result;
-    std::transform(normalizedIntervals.begin(), normalizedIntervals.end(), std::back_inserter(result),
-                   [this](const auto &n) {
+    std::transform(normalizedIntervals.begin(), normalizedIntervals.end(),
+                   std::back_inserter(result),
+                   [this](const auto &delayS) {
                        const auto[times, minutes, volumeRange, panRange, pitchRange] = _rSettings;
                        GeneratedRandomizationData result{};
+                       result.delayMs = delayS;
                        if (volumeRange.has_value()) {
-                           result.volume = a_utils::generateRandomFloat(volumeRange->first, volumeRange->second);
+                           result.volume = a_utils::generateRandomFloat(volumeRange->first,
+                                                                        volumeRange->second);
                        } else result.volume = _volume;
                        if (panRange.has_value()) {
-                           result.pan = a_utils::generateRandomFloat(panRange->first, panRange->second);
+                           result.pan = a_utils::generateRandomFloat(panRange->first,
+                                                                     panRange->second);
                        } else result.pan = _pan;
                        if (pitchRange.has_value()) {
-                           result.pitch = a_utils::generateRandomFloat(pitchRange->first, pitchRange->second);
+                           result.pitch = a_utils::generateRandomFloat(pitchRange->first,
+                                                                       pitchRange->second);
                        } else result.pitch = _pitch;
-                       result.delayMs = n * 1000;
                        return result;
                    });
     _rTimeframes = result;
@@ -445,7 +474,15 @@ void ambientify::EngineChannel::setRandomizationEnabled(bool shouldRandomize) {
     _currRandomTimeframe = 0;
     if (crossfadeEnabled) setCrossfadeEnabled(false);
     _setLooping(!shouldRandomize);
-    if (!shouldRandomize && _isPlaying) stop();
+    if (!shouldRandomize) {
+        _result = _fchannel->setVolume(_volume);
+        ERRCHECK(_result);
+        _result = _fchannel->setPan(_pan);
+        ERRCHECK(_result);
+        _result = _fchannel->setPitch(_pitch);
+        ERRCHECK(_result);
+        if (isPlaying) stop();
+    }
 }
 
 bool ambientify::EngineChannel::setMuted(bool muted) {
