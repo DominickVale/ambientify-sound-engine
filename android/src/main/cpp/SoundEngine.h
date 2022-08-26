@@ -39,9 +39,9 @@ namespace ambientify {
 
         bool toggleChannelPlayback(int channelId);
 
-        void playChannel(int channelId);
+        bool playChannel(int channelId);
 
-        void stopChannel(int channelId);
+        bool stopChannel(int channelId);
 
         void playAll();
 
@@ -53,11 +53,11 @@ namespace ambientify {
 
         void setMasterVolume(float volume);
 
-        float getMasterVolume();
+        double getMasterVolume();
 
-        void setChannelCfEnabled(int channelId, bool enabled);
+        bool setChannelCfEnabled(int channelId, bool enabled);
 
-        void setChannelRandomizationEnabled(int channelId, bool enabled);
+        bool setChannelRandomizationEnabled(int channelId, bool enabled);
 
         bool toggleChannelMuted(int channelId);
 

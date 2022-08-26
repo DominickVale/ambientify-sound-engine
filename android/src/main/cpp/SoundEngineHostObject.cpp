@@ -7,6 +7,48 @@
 #include <android/log.h>
 
 namespace ambientify {
+    jsi::Object channelStatusToJSI(jsi::Runtime &rt, const std::shared_ptr<EngineChannel> &channel) {
+        auto res = jsi::Object(rt);
+        auto jsiRSettings = jsi::Object(rt);
+        auto status = channel->getSerializedStatus();
+
+        res.setProperty(rt, "id", jsi::Value(status->id));
+        res.setProperty(rt, "volume", jsi::Value((double) status->volume));
+        res.setProperty(rt, "durationMs", jsi::Value((int) status->durationMs));
+        res.setProperty(rt, "isLoaded", jsi::Value(status->isLoaded));
+        res.setProperty(rt, "isLoading", jsi::Value(status->isLoading));
+        res.setProperty(rt, "isPlaying", jsi::Value(status->isPlaying));
+        res.setProperty(rt, "isMuted", jsi::Value(status->isMuted));
+        res.setProperty(rt, "crossfadeEnabled", jsi::Value(status->crossfadeEnabled));
+        res.setProperty(rt, "didJustFinish", jsi::Value(status->didJustFinish));
+        res.setProperty(rt, "cfPercentageStart", jsi::Value((double) status->cfPercentageStart));
+        res.setProperty(rt, "volume", jsi::Value((double) status->volume));
+        res.setProperty(rt, "pan", jsi::Value((double) status->pan));
+        res.setProperty(rt, "pitch", jsi::Value((double) status->pitch));
+        res.setProperty(rt, "currentFilePath",
+                        jsi::Value(rt, jsi::String::createFromUtf8(rt, status->currentFilePath)));
+
+        res.setProperty(rt, "randomizationEnabled", jsi::Value(status->randomizationEnabled));
+        jsiRSettings.setProperty(rt, "times", jsi::Value(status->rSettings.times));
+        jsiRSettings.setProperty(rt, "minutes", jsi::Value(status->rSettings.minutes));
+        if (status->rSettings.volumeRange.has_value()) {
+            float v[2] = {status->rSettings.volumeRange->first, status->rSettings.volumeRange->second};
+            auto volR = jsi::Array::createWithElements(rt, v[0], v[1]);
+            jsiRSettings.setProperty(rt, "volumeRange", volR);
+        }
+        if (status->rSettings.panRange.has_value()) {
+            float v[2] = {status->rSettings.panRange->first, status->rSettings.panRange->second};
+            auto panR = jsi::Array::createWithElements(rt, v[0], v[1]);
+            jsiRSettings.setProperty(rt, "panRange", panR);
+        }
+        if (status->rSettings.pitchRange.has_value()) {
+            float v[2] = {status->rSettings.pitchRange->first, status->rSettings.pitchRange->second};
+            auto pitR = jsi::Array::createWithElements(rt, v[0], v[1]);
+            jsiRSettings.setProperty(rt, "pitchRange", pitR);
+        }
+        res.setProperty(rt, "rSettings", jsiRSettings);
+        return res;
+    }
 
     jsi::Value SoundEngineHostObject::get(jsi::Runtime &runtime, const jsi::PropNameID &name) {
         const auto propName = name.utf8(runtime);
@@ -58,7 +100,7 @@ namespace ambientify {
                                                     }
 
                                                     soundEngine->loadChannelStatus(channelId, statusToSet);
-                                                    promise->resolve(jsi::Value(true));
+                                                    promise->resolve(jsi::Value(channelStatusToJSI(rt3, SoundEngine::channels.at(channelId))));
                                                 } catch (const commons::ASoundEngineException &e) {
                                                     promise->reject(e.what());
                                                 }
@@ -132,11 +174,12 @@ namespace ambientify {
                                             runtimeExecutor([&, promise, channelId, path](jsi::Runtime &rt3) {
                                                 try {
                                                     soundEngine->loadChannel(channelId, &path);
-                                                    promise->resolve(jsi::Value::undefined());
+
+                                                    auto res = channelStatusToJSI(rt3, SoundEngine::channels.at(channelId));
+                                                    promise->resolve(jsi::Value(rt3, res));
                                                 } catch (const commons::ASoundEngineException &e) {
                                                     promise->reject(e.what());
                                                 }
-                                                return jsi::Value::undefined();
                                             });
                                         };
                                         tpool->enqueue(fn);
@@ -144,7 +187,7 @@ namespace ambientify {
                         });
             }
 
-            if (propName == "unloadChannel") {
+            if (propName == "unloadChannelAsync") {
                 return a_utils::createFunc(
                         runtime,
                         funcName.c_str(),
@@ -153,17 +196,27 @@ namespace ambientify {
                                const jsi::Value &,
                                const jsi::Value *arguments,
                                size_t count) -> jsi::Value {
-                            try {
-                                const auto channelId = static_cast<int>(arguments[0].getNumber());
-                                soundEngine->unloadChannel(channelId);
-                            } catch (const commons::ASoundEngineException &e) {
-                                jsi::detail::throwJSError(runtime, e.what());
-                            }
-                            return jsi::Value::undefined();
+                            return a_utils::createPromiseAsJSIValue(
+                                    runtime, [&](jsi::Runtime &runtime, std::shared_ptr<a_utils::Promise> promise) {
+                                        const auto channelId = static_cast<int>(arguments[0].getNumber());
+
+                                        auto fn = [&, promise = std::move(promise), channelId]() {
+                                            runtimeExecutor([&, promise, channelId](jsi::Runtime &rt3) {
+                                                try {
+                                                    soundEngine->unloadChannel(channelId);
+                                                    auto res = channelStatusToJSI(rt3, SoundEngine::channels.at(channelId));
+                                                    promise->resolve(jsi::Value(rt3, res));
+                                                } catch (const commons::ASoundEngineException &e) {
+                                                    promise->reject(e.what());
+                                                }
+                                            });
+                                        };
+                                        tpool->enqueue(fn);
+                                    });
                         });
             }
 
-            if (propName == "playChannel") {
+            if (propName == "playChannelAsync") {
                 return a_utils::createFunc(
                         runtime,
                         funcName.c_str(),
@@ -172,17 +225,24 @@ namespace ambientify {
                                const jsi::Value &,
                                const jsi::Value *arguments,
                                size_t count) -> jsi::Value {
-                            try {
-                                const auto channelId = static_cast<int>(arguments[0].getNumber());
-                                soundEngine->playChannel(channelId);
-                            } catch (const commons::ASoundEngineException &e) {
-                                jsi::detail::throwJSError(runtime, e.what());
-                            }
-                            return jsi::Value::undefined();
+                            return a_utils::createPromiseAsJSIValue(
+                                    runtime, [&](jsi::Runtime &runtime, std::shared_ptr<a_utils::Promise> promise) {
+                                        const auto channelId = static_cast<int>(arguments[0].getNumber());
+                                        auto fn = [&, promise = std::move(promise), channelId]() {
+                                            runtimeExecutor([&, promise, channelId](jsi::Runtime &rt3) {
+                                                try {
+                                                    promise->resolve(jsi::Value(soundEngine->playChannel(channelId)));
+                                                } catch (const commons::ASoundEngineException &e) {
+                                                    promise->reject(e.what());
+                                                }
+                                            });
+                                        };
+                                        tpool->enqueue(fn);
+                                    });
                         });
             }
 
-            if (propName == "playAll") {
+            if (propName == "playAllAsync") {
                 return a_utils::createFunc(
                         runtime,
                         funcName.c_str(),
@@ -191,16 +251,24 @@ namespace ambientify {
                                const jsi::Value &,
                                const jsi::Value *arguments,
                                size_t count) -> jsi::Value {
-                            try {
-                                soundEngine->playAll();
-                            } catch (const commons::ASoundEngineException &e) {
-                                jsi::detail::throwJSError(runtime, e.what());
-                            }
-                            return jsi::Value::undefined();
+                            return a_utils::createPromiseAsJSIValue(
+                                    runtime, [&](jsi::Runtime &runtime, std::shared_ptr<a_utils::Promise> promise) {
+                                        auto fn = [&, promise = std::move(promise) ]() {
+                                            runtimeExecutor([&, promise ](jsi::Runtime &rt3) {
+                                                try {
+                                                    soundEngine->playAll();
+                                                    promise->resolve(jsi::Value::undefined());
+                                                } catch (const commons::ASoundEngineException &e) {
+                                                    promise->reject(e.what());
+                                                }
+                                            });
+                                        };
+                                        tpool->enqueue(fn);
+                                    });
                         });
             }
 
-            if (propName == "stopAll") {
+            if (propName == "stopAllAsync") {
                 return a_utils::createFunc(
                         runtime,
                         funcName.c_str(),
@@ -209,16 +277,25 @@ namespace ambientify {
                                const jsi::Value &,
                                const jsi::Value *arguments,
                                size_t count) -> jsi::Value {
-                            try {
-                                soundEngine->stopAll();
-                            } catch (const commons::ASoundEngineException &e) {
-                                jsi::detail::throwJSError(runtime, e.what());
-                            }
-                            return jsi::Value::undefined();
+                            return a_utils::createPromiseAsJSIValue(
+                                    runtime, [&](jsi::Runtime &runtime, std::shared_ptr<a_utils::Promise> promise) {
+
+                                        auto fn = [&, promise = std::move(promise)]() {
+                                            runtimeExecutor([&, promise](jsi::Runtime &rt3) {
+                                                try {
+                                                    soundEngine->stopAll();
+                                                    promise->resolve(jsi::Value::undefined());
+                                                } catch (const commons::ASoundEngineException &e) {
+                                                    promise->reject(e.what());
+                                                }
+                                            });
+                                        };
+                                        tpool->enqueue(fn);
+                                    });
                         });
             }
 
-            if (propName == "stopChannel") {
+            if (propName == "stopChannelAsync") {
                 return a_utils::createFunc(
                         runtime,
                         funcName.c_str(),
@@ -227,13 +304,20 @@ namespace ambientify {
                                const jsi::Value &,
                                const jsi::Value *arguments,
                                size_t count) -> jsi::Value {
-                            try {
-                                const auto channelId = static_cast<int>(arguments[0].getNumber());
-                                soundEngine->stopChannel(channelId);
-                            } catch (const commons::ASoundEngineException &e) {
-                                jsi::detail::throwJSError(runtime, e.what());
-                            }
-                            return jsi::Value::undefined();
+                            return a_utils::createPromiseAsJSIValue(
+                                    runtime, [&](jsi::Runtime &runtime, std::shared_ptr<a_utils::Promise> promise) {
+                                        const auto channelId = static_cast<int>(arguments[0].getNumber());
+                                        auto fn = [&, promise = std::move(promise), channelId]() {
+                                            runtimeExecutor([&, promise, channelId](jsi::Runtime &rt3) {
+                                                try {
+                                                    promise->resolve(jsi::Value(soundEngine->stopChannel(channelId)));
+                                                } catch (const commons::ASoundEngineException &e) {
+                                                    promise->reject(e.what());
+                                                }
+                                            });
+                                        };
+                                        tpool->enqueue(fn);
+                                    });
                         });
             }
 
@@ -254,8 +338,38 @@ namespace ambientify {
                                         auto fn = [&, promise = std::move(promise), channelId, enabled]() {
                                             runtimeExecutor([&, promise, channelId, enabled](jsi::Runtime &rt3) {
                                                 try {
-                                                    soundEngine->setChannelCfEnabled(channelId, enabled);
-                                                    promise->resolve(jsi::Value(true));
+                                                    promise->resolve(jsi::Value(soundEngine->setChannelCfEnabled(channelId, enabled)));
+                                                } catch (const commons::ASoundEngineException &e) {
+                                                    promise->reject(e.what());
+                                                }
+                                            });
+                                        };
+                                        tpool->enqueue(fn);
+                                    });
+                        });
+            }
+
+            if (propName == "setChannelVolumeAsync") {
+                return a_utils::createFunc(
+                        runtime,
+                        funcName.c_str(),
+                        3,
+                        [this](jsi::Runtime &runtime,
+                               const jsi::Value &,
+                               const jsi::Value *arguments,
+                               size_t count) -> jsi::Value {
+                            return a_utils::createPromiseAsJSIValue(
+                                    runtime, [&](jsi::Runtime &runtime, std::shared_ptr<a_utils::Promise> promise) {
+                                        const auto channelId = static_cast<int>(arguments[0].getNumber());
+                                        const auto volume = static_cast<float>(arguments[1].getNumber());
+                                        const auto pan = static_cast<float>(arguments[2].getNumber());
+
+                                        auto fn = [&, promise = std::move(promise), channelId, volume, pan]() {
+                                            runtimeExecutor([&, promise, channelId, volume, pan](jsi::Runtime &rt3) {
+                                                try {
+                                                    soundEngine->setChannelVolume(channelId, volume, pan);
+                                                    auto res = channelStatusToJSI(rt3, SoundEngine::channels.at(channelId));
+                                                    promise->resolve(jsi::Value(rt3, res));
                                                 } catch (const commons::ASoundEngineException &e) {
                                                     promise->reject(e.what());
                                                 }
@@ -267,28 +381,7 @@ namespace ambientify {
                         });
             }
 
-            if (propName == "setChannelVolume") {
-                return a_utils::createFunc(
-                        runtime,
-                        funcName.c_str(),
-                        3,
-                        [this](jsi::Runtime &runtime,
-                               const jsi::Value &,
-                               const jsi::Value *arguments,
-                               size_t count) -> jsi::Value {
-                            try {
-                                const auto channelId = static_cast<int>(arguments[0].getNumber());
-                                const auto volume = static_cast<float>(arguments[1].getNumber());
-                                const auto pan = static_cast<float>(arguments[2].getNumber());
-                                soundEngine->setChannelVolume(channelId, volume, pan);
-                            } catch (const commons::ASoundEngineException &e) {
-                                jsi::detail::throwJSError(runtime, e.what());
-                            }
-                            return true;
-                        });
-            }
-
-            if (propName == "setMasterVolume") {
+            if (propName == "setMasterVolumeAsync") {
                 return a_utils::createFunc(
                         runtime,
                         funcName.c_str(),
@@ -297,17 +390,27 @@ namespace ambientify {
                                const jsi::Value &,
                                const jsi::Value *arguments,
                                size_t count) -> jsi::Value {
-                            try {
-                                const auto volume = static_cast<float>(arguments[0].getNumber());
-                                soundEngine->setMasterVolume(volume);
-                            } catch (const commons::ASoundEngineException &e) {
-                                jsi::detail::throwJSError(runtime, e.what());
-                            }
-                            return true;
+                                return a_utils::createPromiseAsJSIValue(
+                                        runtime, [&](jsi::Runtime &runtime, std::shared_ptr<a_utils::Promise> promise) {
+                                            const auto volume = static_cast<float>(arguments[0].getNumber());
+
+                                            auto fn = [&, promise = std::move(promise), volume]() {
+                                                runtimeExecutor([&, promise, volume](jsi::Runtime &rt3) {
+                                                    try {
+                                                        soundEngine->setMasterVolume(volume);
+                                                        promise->resolve(jsi::Value(soundEngine->getMasterVolume()));
+                                                    } catch (const commons::ASoundEngineException &e) {
+                                                        promise->reject(e.what());
+                                                    }
+                                                    return jsi::Value::undefined();
+                                                });
+                                            };
+                                            tpool->enqueue(fn);
+                                        });
                         });
             }
 
-            if (propName == "toggleChannelPlayback") {
+            if (propName == "toggleChannelPlaybackAsync") {
                 return a_utils::createFunc(
                         runtime,
                         funcName.c_str(),
@@ -316,14 +419,21 @@ namespace ambientify {
                                const jsi::Value &,
                                const jsi::Value *arguments,
                                size_t count) -> jsi::Value {
-                            try {
-                                const auto channelId = static_cast<int>(arguments[0].getNumber());
-                                const bool isNowPlaying = soundEngine->toggleChannelPlayback(channelId);
-                                return jsi::Value(isNowPlaying);
-                            } catch (const commons::ASoundEngineException &e) {
-                                jsi::detail::throwJSError(runtime, e.what());
-                            }
-                            return true;
+                                return a_utils::createPromiseAsJSIValue(
+                                        runtime, [&](jsi::Runtime &runtime, std::shared_ptr<a_utils::Promise> promise) {
+                                            const auto channelId = static_cast<int>(arguments[0].getNumber());
+                                            auto fn = [&, promise = std::move(promise), channelId]() {
+                                                runtimeExecutor([&, promise, channelId](jsi::Runtime &rt3) {
+                                                    try {
+                                                        promise->resolve(jsi::Value(soundEngine->toggleChannelPlayback(channelId)));
+                                                    } catch (const commons::ASoundEngineException &e) {
+                                                        promise->reject(e.what());
+                                                    }
+                                                });
+                                            };
+                                            tpool->enqueue(fn);
+                                        });
+
                         });
             }
 
@@ -345,51 +455,8 @@ namespace ambientify {
                                                         auto jsiState = jsi::Object(rt3);
                                                         auto array = jsi::Array(rt3, SoundEngine::channels.size());
                                                         try {
-                                                            // WARNING: this code makes me vomit my goddamn soul away but i'm too lazy to implement a converting solution
-                                                            // right now since it will be available in the next react native versions anyway (ReactCommons bridging),
-                                                            // so... ¯\_(ツ)_/¯
                                                             for (size_t i = 0; i < SoundEngine::channels.size(); ++i) {
-                                                                auto res = jsi::Object(rt3);
-                                                                auto jsiRSettings = jsi::Object(rt3);
-                                                                auto channel = SoundEngine::channels.at(i);
-                                                                auto status = channel->getSerializedStatus();
-
-                                                                res.setProperty(rt3, "id", jsi::Value(status->id));
-                                                                res.setProperty(rt3, "volume", jsi::Value((double) status->volume));
-                                                                res.setProperty(rt3, "durationMs", jsi::Value((int) status->durationMs));
-                                                                res.setProperty(rt3, "isLoaded", jsi::Value(status->isLoaded));
-                                                                res.setProperty(rt3, "isLoading", jsi::Value(status->isLoading));
-                                                                res.setProperty(rt3, "isPlaying", jsi::Value(status->isPlaying));
-                                                                res.setProperty(rt3, "isMuted", jsi::Value(status->isMuted));
-                                                                res.setProperty(rt3, "crossfadeEnabled", jsi::Value(status->crossfadeEnabled));
-                                                                res.setProperty(rt3, "didJustFinish", jsi::Value(status->didJustFinish));
-                                                                res.setProperty(rt3, "cfPercentageStart", jsi::Value((double) status->cfPercentageStart));
-                                                                res.setProperty(rt3, "volume", jsi::Value((double) status->volume));
-                                                                res.setProperty(rt3, "pan", jsi::Value((double) status->pan));
-                                                                res.setProperty(rt3, "pitch", jsi::Value((double) status->pitch));
-                                                                res.setProperty(rt3, "currentFilePath",
-                                                                                jsi::Value(rt3, jsi::String::createFromUtf8(rt3, status->currentFilePath)));
-
-                                                                res.setProperty(rt3, "randomizationEnabled", jsi::Value(status->randomizationEnabled));
-                                                                jsiRSettings.setProperty(rt3, "times", jsi::Value(status->rSettings.times));
-                                                                jsiRSettings.setProperty(rt3, "minutes", jsi::Value(status->rSettings.minutes));
-                                                                if (status->rSettings.volumeRange.has_value()) {
-                                                                    float v[2] = {status->rSettings.volumeRange->first, status->rSettings.volumeRange->second};
-                                                                    auto volR = jsi::Array::createWithElements(rt3, v[0], v[1]);
-                                                                    jsiRSettings.setProperty(rt3, "volumeRange", volR);
-                                                                }
-                                                                if (status->rSettings.panRange.has_value()) {
-                                                                    float v[2] = {status->rSettings.panRange->first, status->rSettings.panRange->second};
-                                                                    auto panR = jsi::Array::createWithElements(rt3, v[0], v[1]);
-                                                                    jsiRSettings.setProperty(rt3, "panRange", panR);
-                                                                }
-                                                                if (status->rSettings.pitchRange.has_value()) {
-                                                                    float v[2] = {status->rSettings.pitchRange->first, status->rSettings.pitchRange->second};
-                                                                    auto pitR = jsi::Array::createWithElements(rt3, v[0], v[1]);
-                                                                    jsiRSettings.setProperty(rt3, "pitchRange", pitR);
-                                                                }
-                                                                res.setProperty(rt3, "rSettings", jsiRSettings);
-
+                                                                auto res = channelStatusToJSI(rt3, SoundEngine::channels.at( i));
                                                                 array.setValueAtIndex(rt3, i, res);
                                                             }
                                                         } catch (const commons::ASoundEngineException &e) {
@@ -407,7 +474,7 @@ namespace ambientify {
                         });
             }
 
-            if (propName == "setRandomizationEnabled") {
+            if (propName == "setRandomizationEnabledAsync") {
                 return a_utils::createFunc(
                         runtime,
                         funcName.c_str(),
@@ -416,18 +483,26 @@ namespace ambientify {
                                const jsi::Value &,
                                const jsi::Value *arguments,
                                size_t count) -> jsi::Value {
-                            try {
-                                const auto channelId = static_cast<int>(arguments[0].getNumber());
-                                const auto shouldRandomize = static_cast<bool>(arguments[1].getBool());
-                                soundEngine->setChannelRandomizationEnabled(channelId, shouldRandomize);
-                            } catch (const commons::ASoundEngineException &e) {
-                                jsi::detail::throwJSError(runtime, e.what());
-                            }
-                            return jsi::Value::undefined();
+                                return a_utils::createPromiseAsJSIValue(
+                                        runtime, [&](jsi::Runtime &runtime, std::shared_ptr<a_utils::Promise> promise) {
+                                            const auto channelId = static_cast<int>(arguments[0].getNumber());
+                                            const auto shouldRandomize = static_cast<bool>(arguments[1].getBool());
+
+                                            auto fn = [&, promise = std::move(promise), channelId, shouldRandomize]() {
+                                                runtimeExecutor([&, promise, channelId, shouldRandomize](jsi::Runtime &rt3) {
+                                                    try {
+                                                        promise->resolve(jsi::Value(soundEngine->setChannelRandomizationEnabled(channelId, shouldRandomize)));
+                                                    } catch (const commons::ASoundEngineException &e) {
+                                                        promise->reject(e.what());
+                                                    }
+                                                });
+                                            };
+                                            tpool->enqueue(fn);
+                                        });
                         });
             }
 
-            if (propName == "setRandomizationSettings") {
+            if (propName == "setRandomizationSettingsAsync") {
                 return a_utils::createFunc(
                         runtime,
                         funcName.c_str(),
@@ -436,47 +511,60 @@ namespace ambientify {
                                const jsi::Value &,
                                const jsi::Value *arguments,
                                size_t count) -> jsi::Value {
-                            try {
-                                const auto channelId = static_cast<int>(arguments[0].getNumber());
-                                const auto jsiStatus = std::make_shared<jsi::Object>(arguments[1].getObject(runtime));
+                            return a_utils::createPromiseAsJSIValue(
+                                    runtime, [&](jsi::Runtime &runtime, std::shared_ptr<a_utils::Promise> promise) {
+                                        const auto channelId = static_cast<int>(arguments[0].getNumber());
+                                        const auto jsiStatus = std::make_shared<jsi::Object>(arguments[1].getObject(runtime));
+                                        try {
+                                            auto statusToSet = std::make_shared<ChannelRandomizationDataSettings>();
+                                            auto jsiStatusPropNames = jsiStatus->getPropertyNames(runtime);
+                                            for (int i = 0; i < jsiStatusPropNames.size(runtime); i++) {
+                                                // @todo: safety checks
+                                                const auto propNameStr = jsiStatusPropNames.getValueAtIndex(runtime, i).asString(runtime).utf8(runtime);
+                                                if (jsiStatus->getProperty(runtime, propNameStr.c_str()).isNull()) continue;
+                                                if (propNameStr == "times") {
+                                                    statusToSet->times = (int) jsiStatus->getProperty(runtime, propNameStr.c_str()).getNumber();
+                                                } else if (propNameStr == "minutes") {
+                                                    statusToSet->minutes = (int) jsiStatus->getProperty(runtime, propNameStr.c_str()).getNumber();
+                                                } else if (propNameStr == "panRange") {
+                                                    const auto panRange = jsiStatus->getProperty(runtime, propNameStr.c_str()).getObject(runtime).asArray(runtime);
+                                                    const auto v1 = static_cast<float>(panRange.getValueAtIndex(runtime, 0).getNumber());
+                                                    const auto v2 = static_cast<float>(panRange.getValueAtIndex(runtime, 1).getNumber());
+                                                    statusToSet->panRange = std::make_pair(v1, v2);
+                                                } else if (propNameStr == "volumeRange") {
+                                                    const auto volumeRange = jsiStatus->getProperty(runtime, propNameStr.c_str()).getObject(runtime).asArray(runtime);
+                                                    const auto v1 = static_cast<float>(volumeRange.getValueAtIndex(runtime, 0).getNumber());
+                                                    const auto v2 = static_cast<float>(volumeRange.getValueAtIndex(runtime, 1).getNumber());
+                                                    statusToSet->volumeRange = std::make_pair(v1, v2);
+                                                } else if (propNameStr == "pitchRange") {
+                                                    const auto pitchRange = jsiStatus->getProperty(runtime, propNameStr.c_str()).getObject(runtime).asArray(runtime);
+                                                    const auto v1 = static_cast<float>(pitchRange.getValueAtIndex(runtime, 0).getNumber());
+                                                    const auto v2 = static_cast<float>(pitchRange.getValueAtIndex(runtime, 1).getNumber());
+                                                    statusToSet->pitchRange = std::make_pair(v1, v2);
+                                                }
+                                            }
 
-                                auto statusToSet = std::make_shared<ChannelRandomizationDataSettings>();
-                                auto jsiStatusPropNames = jsiStatus->getPropertyNames(runtime);
-                                for (int i = 0; i < jsiStatusPropNames.size(runtime); i++) {
-                                    // @todo: safety checks
-                                    const auto propNameStr = jsiStatusPropNames.getValueAtIndex(runtime, i).asString(runtime).utf8(runtime);
-                                    if (jsiStatus->getProperty(runtime, propNameStr.c_str()).isNull()) continue;
-                                    if (propNameStr == "times") {
-                                        statusToSet->times = (int) jsiStatus->getProperty(runtime, propNameStr.c_str()).getNumber();
-                                    } else if (propNameStr == "minutes") {
-                                        statusToSet->minutes = (int) jsiStatus->getProperty(runtime, propNameStr.c_str()).getNumber();
-                                    } else if (propNameStr == "panRange") {
-                                        const auto panRange = jsiStatus->getProperty(runtime, propNameStr.c_str()).getObject(runtime).asArray(runtime);
-                                        const auto v1 = static_cast<float>(panRange.getValueAtIndex(runtime, 0).getNumber());
-                                        const auto v2 = static_cast<float>(panRange.getValueAtIndex(runtime, 1).getNumber());
-                                        statusToSet->panRange = std::make_pair(v1, v2);
-                                    } else if (propNameStr == "volumeRange") {
-                                        const auto volumeRange = jsiStatus->getProperty(runtime, propNameStr.c_str()).getObject(runtime).asArray(runtime);
-                                        const auto v1 = static_cast<float>(volumeRange.getValueAtIndex(runtime, 0).getNumber());
-                                        const auto v2 = static_cast<float>(volumeRange.getValueAtIndex(runtime, 1).getNumber());
-                                        statusToSet->volumeRange = std::make_pair(v1, v2);
-                                    } else if (propNameStr == "pitchRange") {
-                                        const auto pitchRange = jsiStatus->getProperty(runtime, propNameStr.c_str()).getObject(runtime).asArray(runtime);
-                                        const auto v1 = static_cast<float>(pitchRange.getValueAtIndex(runtime, 0).getNumber());
-                                        const auto v2 = static_cast<float>(pitchRange.getValueAtIndex(runtime, 1).getNumber());
-                                        statusToSet->pitchRange = std::make_pair(v1, v2);
-                                    }
-                                }
+                                            auto fn = [&, promise = std::move(promise), channelId, statusToSet]() {
+                                                runtimeExecutor([&, promise, channelId, statusToSet](jsi::Runtime &rt3) {
+                                                    try {
+                                                        soundEngine->setChannelRandomizationSettings(channelId, statusToSet);
+                                                        auto res = channelStatusToJSI(rt3, SoundEngine::channels.at(channelId));
+                                                        promise->resolve(jsi::Value(rt3, res));
+                                                    } catch (const commons::ASoundEngineException &e) {
+                                                        promise->reject(e.what());
+                                                    }
+                                                });
+                                            };
+                                            tpool->enqueue(fn);
 
-                                soundEngine->setChannelRandomizationSettings(channelId, statusToSet);
-                            } catch (const commons::ASoundEngineException &e) {
-                                jsi::detail::throwJSError(runtime, e.what());
-                            }
-                            return jsi::Value::undefined();
+                                        } catch (const commons::ASoundEngineException &e) {
+                                            jsi::detail::throwJSError(runtime, e.what());
+                                        }
+                                    });
                         });
             }
 
-            if (propName == "toggleChannelMuted") {
+            if (propName == "toggleChannelMutedAsync") {
                 return a_utils::createFunc(
                         runtime,
                         funcName.c_str(),
@@ -485,18 +573,24 @@ namespace ambientify {
                                const jsi::Value &,
                                const jsi::Value *arguments,
                                size_t count) -> jsi::Value {
-                            try {
-                                const auto channelId = static_cast<int>(arguments[0].getNumber());
-                                const bool isNowMuted = soundEngine->toggleChannelMuted(channelId);
-                                return {runtime, isNowMuted};
-                            } catch (const commons::ASoundEngineException &e) {
-                                jsi::detail::throwJSError(runtime, e.what());
-                            }
-                            return jsi::Value::undefined();
+                                return a_utils::createPromiseAsJSIValue(
+                                        runtime, [&](jsi::Runtime &runtime, std::shared_ptr<a_utils::Promise> promise) {
+                                            const auto channelId = static_cast<int>(arguments[0].getNumber());
+                                            auto fn = [&, promise = std::move(promise), channelId]() {
+                                                runtimeExecutor([&, promise, channelId](jsi::Runtime &rt3) {
+                                                    try {
+                                                        promise->resolve(jsi::Value(soundEngine->toggleChannelMuted(channelId)));
+                                                    } catch (const commons::ASoundEngineException &e) {
+                                                        promise->reject(e.what());
+                                                    }
+                                                });
+                                            };
+                                            tpool->enqueue(fn);
+                                        });
                         });
             }
 
-            if (propName == "toggleChannelMuted") {
+            if (propName == "resetChannelAsync") {
                 return a_utils::createFunc(
                         runtime,
                         funcName.c_str(),
@@ -505,32 +599,23 @@ namespace ambientify {
                                const jsi::Value &,
                                const jsi::Value *arguments,
                                size_t count) -> jsi::Value {
-                            try {
-                                const auto channelId = static_cast<int>(arguments[0].getNumber());
-                                soundEngine->toggleChannelMuted(channelId);
-                            } catch (const commons::ASoundEngineException &e) {
-                                jsi::detail::throwJSError(runtime, e.what());
-                            }
-                            return jsi::Value::undefined();
-                        });
-            }
+                            return a_utils::createPromiseAsJSIValue(
+                                    runtime, [&](jsi::Runtime &runtime, std::shared_ptr<a_utils::Promise> promise) {
+                                        const auto channelId = static_cast<int>(arguments[0].getNumber());
 
-            if (propName == "resetChannel") {
-                return a_utils::createFunc(
-                        runtime,
-                        funcName.c_str(),
-                        1,
-                        [this](jsi::Runtime &runtime,
-                               const jsi::Value &,
-                               const jsi::Value *arguments,
-                               size_t count) -> jsi::Value {
-                            try {
-                                const auto channelId = static_cast<int>(arguments[0].getNumber());
-                                soundEngine->resetChannel(channelId);
-                            } catch (const commons::ASoundEngineException &e) {
-                                jsi::detail::throwJSError(runtime, e.what());
-                            }
-                            return jsi::Value::undefined();
+                                        auto fn = [&, promise = std::move(promise), channelId]() {
+                                            runtimeExecutor([&, promise, channelId](jsi::Runtime &rt3) {
+                                                try {
+                                                    soundEngine->resetChannel(channelId);
+                                                    auto res = channelStatusToJSI(rt3, SoundEngine::channels.at(channelId));
+                                                    promise->resolve(jsi::Value(rt3, res));
+                                                } catch (const commons::ASoundEngineException &e) {
+                                                    promise->reject(e.what());
+                                                }
+                                            });
+                                        };
+                                        tpool->enqueue(fn);
+                                    });
                         });
             }
         }

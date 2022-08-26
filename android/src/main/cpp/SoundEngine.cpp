@@ -157,9 +157,9 @@ void ambientify::SoundEngine::loadChannel(int channelId, const std::string *path
     }
 }
 
-void ambientify::SoundEngine::playChannel(int channelId) {
+bool ambientify::SoundEngine::playChannel(int channelId) {
     const auto ch = getChannelById(channelId);
-    if (ch->isPlaying) return;
+    if (ch->isPlaying) return true;
     if (ch->isLoaded) {
         ch->play();
     } else if (!ch->currFilePath.empty()) {
@@ -168,16 +168,18 @@ void ambientify::SoundEngine::playChannel(int channelId) {
     } else {
         throw commons::ASoundEngineException("Channel is not loaded");
     }
+    return ch->isPlaying;
 }
 
-void ambientify::SoundEngine::stopChannel(int channelId) {
+bool ambientify::SoundEngine::stopChannel(int channelId) {
     const auto ch = getChannelById(channelId);
-    if (!ch->isPlaying) return;
+    if (!ch->isPlaying) return false;
     if (ch->isLoaded) {
         ch->stop();
     } else {
         throw commons::ASoundEngineException("Channel is not loaded");
     }
+    return ch->isPlaying;
 }
 
 void ambientify::SoundEngine::unloadChannel(int channelId) {
@@ -190,14 +192,16 @@ void ambientify::SoundEngine::loadChannelStatus(int channelId, const std::shared
     ch->loadStatus(newStatus);
 }
 
-void ambientify::SoundEngine::setChannelCfEnabled(int channelId, bool enabled) {
+bool ambientify::SoundEngine::setChannelCfEnabled(int channelId, bool enabled) {
     const auto ch = getChannelById(channelId);
     ch->setCrossfadeEnabled(enabled);
+    return ch->crossfadeEnabled;
 }
 
-void ambientify::SoundEngine::setChannelRandomizationEnabled(int channelId, bool enabled) {
+bool ambientify::SoundEngine::setChannelRandomizationEnabled(int channelId, bool enabled) {
     const auto ch = getChannelById(channelId);
     ch->setRandomizationEnabled(enabled);
+    return ch->randomizationEnabled;
 }
 
 void ambientify::SoundEngine::setChannelRandomizationSettings(int channelId, const std::shared_ptr<ChannelRandomizationDataSettings> &newSettings) {
@@ -236,12 +240,12 @@ void ambientify::SoundEngine::stopAll() {
     }
 }
 
-float ambientify::SoundEngine::getMasterVolume() {
+double ambientify::SoundEngine::getMasterVolume() {
     float vol;
     FMOD::ChannelGroup *masterGroup;
     result = system->getMasterChannelGroup(&masterGroup);
     ERRCHECK(result);
     result = masterGroup->getVolume(&vol);
     ERRCHECK(result);
-    return vol;
+    return (double) vol;
 }
