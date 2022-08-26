@@ -54,9 +54,13 @@ namespace ambientify {
         const auto propName = name.utf8(runtime);
         const auto funcName = "_AmbientifySoundEngine." + propName;
 
-        if (soundEngine) {
-            if (propName == "isReady") {
-                return {soundEngine->isEngineReady};
+        if (soundEngine && soundEngine->isRunning) {
+            if (propName == "isRunning") {
+                return {soundEngine->isRunning};
+            }
+
+            if (propName == "shutDown") {
+                soundEngine->shutDown();
             }
 
             if (propName == "setStatusAsync") {
@@ -450,22 +454,20 @@ namespace ambientify {
                                     runtime, [&](jsi::Runtime &runtime, std::shared_ptr<a_utils::Promise> promise) {
                                         auto fn = [&, promise = std::move(promise)]() {
                                             runtimeExecutor([&, promise](jsi::Runtime &rt3) {
-                                                if (soundEngine->isEngineReadyFn()) {
-                                                    if (!SoundEngine::channels.empty()) {
-                                                        auto jsiState = jsi::Object(rt3);
-                                                        auto array = jsi::Array(rt3, SoundEngine::channels.size());
-                                                        try {
-                                                            for (size_t i = 0; i < SoundEngine::channels.size(); ++i) {
-                                                                auto res = channelStatusToJSI(rt3, SoundEngine::channels.at( i));
-                                                                array.setValueAtIndex(rt3, i, res);
-                                                            }
-                                                        } catch (const commons::ASoundEngineException &e) {
-                                                            promise->reject(e.what());
+                                                if (!SoundEngine::channels.empty()) {
+                                                    auto jsiState = jsi::Object(rt3);
+                                                    auto array = jsi::Array(rt3, SoundEngine::channels.size());
+                                                    try {
+                                                        for (size_t i = 0; i < SoundEngine::channels.size(); ++i) {
+                                                            auto res = channelStatusToJSI(rt3, SoundEngine::channels.at( i));
+                                                            array.setValueAtIndex(rt3, i, res);
                                                         }
-                                                        jsiState.setProperty(rt3, "sounds", array);
-                                                        jsiState.setProperty(rt3, "masterVolume", soundEngine->getMasterVolume());
-                                                        promise->resolve(std::move(jsiState));
+                                                    } catch (const commons::ASoundEngineException &e) {
+                                                        promise->reject(e.what());
                                                     }
+                                                    jsiState.setProperty(rt3, "sounds", array);
+                                                    jsiState.setProperty(rt3, "masterVolume", soundEngine->getMasterVolume());
+                                                    promise->resolve(std::move(jsiState));
                                                 }
                                             });
                                         };

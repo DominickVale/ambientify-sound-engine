@@ -69,7 +69,7 @@ void ambientify::SoundEngine::update() {
             else
                 ERRCHECK(result);
         }
-        isEngineReady = true;
+        isRunning = true;
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 }
@@ -94,6 +94,7 @@ ambientify::SoundEngine::SoundEngine() {
 
 ambientify::SoundEngine::~SoundEngine() {
     _stopped = true;
+    isRunning = false;
     system->release();
 }
 
@@ -248,4 +249,9 @@ double ambientify::SoundEngine::getMasterVolume() {
     result = masterGroup->getVolume(&vol);
     ERRCHECK(result);
     return (double) vol;
+}
+
+void ambientify::SoundEngine::shutDown() {
+    _stopped = true;
+    system->release();
 }
