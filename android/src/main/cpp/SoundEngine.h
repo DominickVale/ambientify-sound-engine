@@ -21,10 +21,10 @@ namespace ambientify {
             return _instance;
         }
 
-        bool isRunning = false;
+        bool isEngineReady = false;
 
         bool isEngineReadyFn() {
-            return isRunning;
+            return isEngineReady;
         }
 
         void update();
@@ -66,8 +66,6 @@ namespace ambientify {
         void setChannelRandomizationSettings(int channelId, const std::shared_ptr<ChannelRandomizationDataSettings> &);
 
         void resetChannel(int channelId);
-
-        void shutDown();
 
         static std::vector<std::shared_ptr<ambientify::EngineChannel>> channels;
 

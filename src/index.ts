@@ -50,11 +50,8 @@ function getInstance() {
 }
 
 const AmbientifySoundEngine = {
-  isRunning(): boolean {
-    return getInstance().isRunning;
-  },
-  shutDown(): void {
-    return getInstance().shutDown();
+  isReady(): boolean {
+    return getInstance().isReady;
   },
   async stopAllAsync(): Promise<AmbientifySoundState> {
     await getInstance().stopAllAsync();
