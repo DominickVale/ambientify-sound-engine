@@ -7,7 +7,8 @@
 #include <android/log.h>
 
 namespace ambientify {
-    jsi::Object channelStatusToJSI(jsi::Runtime &rt, const std::shared_ptr<EngineChannel> &channel) {
+    jsi::Object channelStatusToJSI(jsi::Runtime &rt, int chId) {
+        auto channel = SoundEngine::channels.at(chId);
         auto res = jsi::Object(rt);
         auto jsiRSettings = jsi::Object(rt);
         auto status = channel->getSerializedStatus();
@@ -31,6 +32,9 @@ namespace ambientify {
         res.setProperty(rt, "randomizationEnabled", jsi::Value(status->randomizationEnabled));
         jsiRSettings.setProperty(rt, "times", jsi::Value(status->rSettings.times));
         jsiRSettings.setProperty(rt, "minutes", jsi::Value(status->rSettings.minutes));
+        jsiRSettings.setProperty(rt, "volumeRange", jsi::Value::null());
+        jsiRSettings.setProperty(rt, "panRange", jsi::Value::null());
+        jsiRSettings.setProperty(rt, "pitchRange", jsi::Value::null());
         if (status->rSettings.volumeRange.has_value()) {
             float v[2] = {status->rSettings.volumeRange->first, status->rSettings.volumeRange->second};
             auto volR = jsi::Array::createWithElements(rt, v[0], v[1]);
@@ -57,6 +61,10 @@ namespace ambientify {
         if (soundEngine) {
             if (propName == "isReady") {
                 return {soundEngine->isEngineReady};
+            }
+
+            if (propName == "nChannels") {
+                return { (int) SoundEngine::channels.size() };
             }
 
             if (propName == "setStatusAsync") {
@@ -100,7 +108,7 @@ namespace ambientify {
                                                     }
 
                                                     soundEngine->loadChannelStatus(channelId, statusToSet);
-                                                    promise->resolve(jsi::Value(channelStatusToJSI(rt3, SoundEngine::channels.at(channelId))));
+                                                    promise->resolve(jsi::Value(channelStatusToJSI(rt3, channelId)));
                                                 } catch (const commons::ASoundEngineException &e) {
                                                     promise->reject(e.what());
                                                 }
@@ -175,7 +183,7 @@ namespace ambientify {
                                                 try {
                                                     soundEngine->loadChannel(channelId, &path);
 
-                                                    auto res = channelStatusToJSI(rt3, SoundEngine::channels.at(channelId));
+                                                    auto res = channelStatusToJSI(rt3, channelId);
                                                     promise->resolve(jsi::Value(rt3, res));
                                                 } catch (const commons::ASoundEngineException &e) {
                                                     promise->reject(e.what());
@@ -204,7 +212,7 @@ namespace ambientify {
                                             runtimeExecutor([&, promise, channelId](jsi::Runtime &rt3) {
                                                 try {
                                                     soundEngine->unloadChannel(channelId);
-                                                    auto res = channelStatusToJSI(rt3, SoundEngine::channels.at(channelId));
+                                                    auto res = channelStatusToJSI(rt3, channelId);
                                                     promise->resolve(jsi::Value(rt3, res));
                                                 } catch (const commons::ASoundEngineException &e) {
                                                     promise->reject(e.what());
@@ -368,7 +376,7 @@ namespace ambientify {
                                             runtimeExecutor([&, promise, channelId, volume, pan](jsi::Runtime &rt3) {
                                                 try {
                                                     soundEngine->setChannelVolume(channelId, volume, pan);
-                                                    auto res = channelStatusToJSI(rt3, SoundEngine::channels.at(channelId));
+                                                    auto res = channelStatusToJSI(rt3, channelId);
                                                     promise->resolve(jsi::Value(rt3, res));
                                                 } catch (const commons::ASoundEngineException &e) {
                                                     promise->reject(e.what());
@@ -456,7 +464,7 @@ namespace ambientify {
                                                         auto array = jsi::Array(rt3, SoundEngine::channels.size());
                                                         try {
                                                             for (size_t i = 0; i < SoundEngine::channels.size(); ++i) {
-                                                                auto res = channelStatusToJSI(rt3, SoundEngine::channels.at( i));
+                                                                auto res = channelStatusToJSI(rt3, i);
                                                                 array.setValueAtIndex(rt3, i, res);
                                                             }
                                                         } catch (const commons::ASoundEngineException &e) {
@@ -491,7 +499,9 @@ namespace ambientify {
                                             auto fn = [&, promise = std::move(promise), channelId, shouldRandomize]() {
                                                 runtimeExecutor([&, promise, channelId, shouldRandomize](jsi::Runtime &rt3) {
                                                     try {
-                                                        promise->resolve(jsi::Value(soundEngine->setChannelRandomizationEnabled(channelId, shouldRandomize)));
+                                                        soundEngine->setChannelRandomizationEnabled(channelId, shouldRandomize);
+                                                        auto res = channelStatusToJSI(rt3, channelId);
+                                                        promise->resolve(std::move(res));
                                                     } catch (const commons::ASoundEngineException &e) {
                                                         promise->reject(e.what());
                                                     }
@@ -548,7 +558,7 @@ namespace ambientify {
                                                 runtimeExecutor([&, promise, channelId, statusToSet](jsi::Runtime &rt3) {
                                                     try {
                                                         soundEngine->setChannelRandomizationSettings(channelId, statusToSet);
-                                                        auto res = channelStatusToJSI(rt3, SoundEngine::channels.at(channelId));
+                                                        auto res = channelStatusToJSI(rt3, channelId);
                                                         promise->resolve(jsi::Value(rt3, res));
                                                     } catch (const commons::ASoundEngineException &e) {
                                                         promise->reject(e.what());
@@ -607,7 +617,7 @@ namespace ambientify {
                                             runtimeExecutor([&, promise, channelId](jsi::Runtime &rt3) {
                                                 try {
                                                     soundEngine->resetChannel(channelId);
-                                                    auto res = channelStatusToJSI(rt3, SoundEngine::channels.at(channelId));
+                                                    auto res = channelStatusToJSI(rt3, channelId);
                                                     promise->resolve(jsi::Value(rt3, res));
                                                 } catch (const commons::ASoundEngineException &e) {
                                                     promise->reject(e.what());

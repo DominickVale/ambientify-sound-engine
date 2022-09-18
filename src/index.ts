@@ -53,6 +53,9 @@ const AmbientifySoundEngine = {
   isReady(): boolean {
     return getInstance().isReady;
   },
+  nChannels(): number {
+    return getInstance().nChannels;
+  },
   async stopAllAsync(): Promise<AmbientifySoundState> {
     await getInstance().stopAllAsync();
     return getInstance().getSerializedStateAsync();
@@ -97,7 +100,7 @@ const AmbientifySoundEngine = {
   async stopAsync(channelId: number): Promise<boolean> {
     return getInstance().stopChannelAsync(channelId);
   },
-  async setRandomizationEnabledAsync(channelId: number, enabled: boolean): Promise<boolean> {
+  async setRandomizationEnabledAsync(channelId: number, enabled: boolean): Promise<AmbientifyChannelState> {
     return getInstance().setRandomizationEnabledAsync(channelId, enabled);
   },
   async setRandomizationSettingsAsync(

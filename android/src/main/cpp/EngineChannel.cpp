@@ -108,7 +108,6 @@ void ambientify::EngineChannel::play() {
     if (_isPlaying && !randomizationEnabled) return;
     if (randomizationEnabled && _didJustPause) {
         _didJustPause = false;
-        return;
     }
     if (!_isLoaded || _isLoading) {
         throw ambientify::commons::ASoundEngineException("Sound is not yet loaded");
@@ -122,6 +121,7 @@ void ambientify::EngineChannel::play() {
     if (_crossfadeEnabled && (!_secondaryChannel || !_secondaryChannel->_isLoaded)) {
         loadSecondary();
     }
+    _updateSerializedStatus();
 }
 
 void ambientify::EngineChannel::stop() {
@@ -150,6 +150,7 @@ void ambientify::EngineChannel::stop() {
     _didJustPause = true;
     _isPlaying = false;
     _isCrossfading = false;
+    _updateSerializedStatus();
 }
 
 void ambientify::EngineChannel::onChannelEndCallback() {
@@ -345,6 +346,7 @@ void ambientify::EngineChannel::setCrossfadeEnabled(bool shouldCrossfade) {
         loadSecondary();
     }
     if (wasPlaying) play();
+    _updateSerializedStatus();
 }
 
 void ambientify::EngineChannel::_setLooping(bool shouldLoop) {
@@ -385,6 +387,7 @@ void ambientify::EngineChannel::setRandomizationSettings(
     // copy the new values
     _rSettings = *newSettings;
     _generateRandomTimeframes();
+    _updateSerializedStatus();
 }
 
 void ambientify::EngineChannel::runNextRandomFrame() {
@@ -483,6 +486,7 @@ void ambientify::EngineChannel::setRandomizationEnabled(bool shouldRandomize) {
         ERRCHECK(_result);
         if (isPlaying) stop();
     }
+    _updateSerializedStatus();
 }
 
 bool ambientify::EngineChannel::setMuted(bool muted) {
