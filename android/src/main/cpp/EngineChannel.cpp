@@ -110,7 +110,7 @@ void ambientify::EngineChannel::play() {
         _didJustPause = false;
     }
     if (!_isLoaded || _isLoading) {
-        throw ambientify::commons::ASoundEngineException("Sound is not yet loaded");
+        throw ambientify::commons::ASoundEngineException("Can't play: sound is not yet loaded");
     }
     _result = _fchannel->setPaused(false);
     ERRCHECK(_result);
@@ -126,7 +126,7 @@ void ambientify::EngineChannel::play() {
 
 void ambientify::EngineChannel::stop() {
     if (!_isLoaded || _isLoading)
-        throw ambientify::commons::ASoundEngineException("Sound is not yet loaded");
+        throw ambientify::commons::ASoundEngineException("Can't stop: sound is not yet loaded");
 
     if (!_isSecondary && _secondaryChannel && _secondaryChannel->isPlaying) {
         std::scoped_lock lock(_cfMutex);
@@ -267,7 +267,7 @@ FMOD_RESULT ambientify::EngineChannel::update() {
 
 void ambientify::EngineChannel::setVolume(float volume, float pan) {
     if (!_isLoaded || _isLoading) {
-        throw ambientify::commons::ASoundEngineException("Sound is not yet loaded");
+        throw ambientify::commons::ASoundEngineException("Can't set volume: sound is not yet loaded");
     }
     _volume = volume;
     _result = _fchannel->setVolume(_volume);
@@ -306,6 +306,7 @@ void ambientify::EngineChannel::loadStatus(
     if (newStatus->contains("volume"))
         setVolume(std::any_cast<float>(newStatus->at("volume")), _pan);
     if (newStatus->contains("pan")) setVolume(_volume, std::any_cast<float>(newStatus->at("pan")));
+    if (newStatus->contains("isMuted")) setMuted(std::any_cast<bool>(newStatus->at("isMuted")));
     if (newStatus->contains("cfPercentageStart")) {
         const auto newPercentageStart = std::any_cast<float>(newStatus->at("cfPercentageStart"));
         if (newPercentageStart <= 0.5)
@@ -491,7 +492,7 @@ void ambientify::EngineChannel::setRandomizationEnabled(bool shouldRandomize) {
 
 bool ambientify::EngineChannel::setMuted(bool muted) {
     if (!_isLoaded || _isLoading)
-        throw ambientify::commons::ASoundEngineException("Sound is not yet loaded");
+        throw ambientify::commons::ASoundEngineException("Can't mute: sound is not yet loaded");
     _result = _fchannel->setMute(muted);
     ERRCHECK(_result);
     if (crossfadeEnabled && _secondaryChannel && _secondaryChannel->isLoaded) {
@@ -500,6 +501,7 @@ bool ambientify::EngineChannel::setMuted(bool muted) {
         _secondaryChannel->_isMuted = muted;
     }
     _isMuted = muted;
+    _updateSerializedStatus();
     return muted;
 }
 
