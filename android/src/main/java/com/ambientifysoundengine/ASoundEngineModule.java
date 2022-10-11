@@ -5,6 +5,7 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 
 import com.facebook.react.bridge.JavaScriptContextHolder;
+import com.facebook.react.bridge.LifecycleEventListener;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
@@ -13,12 +14,13 @@ import com.facebook.react.module.annotations.ReactModule;
 import com.facebook.react.turbomodule.core.CallInvokerHolderImpl;
 
 @ReactModule(name = ASoundEngineModule.NAME)
-public class ASoundEngineModule extends ReactContextBaseJavaModule {
+public class ASoundEngineModule extends ReactContextBaseJavaModule implements LifecycleEventListener {
   public static final String NAME = "ASoundEngine";
   private static native void nativeInstall(long jsiPtr, RuntimeExecutor runtimeExecutor, CallInvokerHolderImpl callInvoker);
 
   public ASoundEngineModule(ReactApplicationContext reactContext) {
     super(reactContext);
+    reactContext.addLifecycleEventListener(this);
   }
 
   @Override
@@ -36,8 +38,8 @@ public class ASoundEngineModule extends ReactContextBaseJavaModule {
       {
         System.loadLibrary(lib);
       }
-      org.fmod.FMOD.init(context);
       System.loadLibrary("ambientifySoundEngine");
+      org.fmod.FMOD.init(context);
 
       JavaScriptContextHolder jsContext = context.getJavaScriptContextHolder();
       if (jsContext.get() != 0) {
@@ -54,5 +56,21 @@ public class ASoundEngineModule extends ReactContextBaseJavaModule {
     } catch (Exception exception) {
       return false;
     }
+  }
+
+  @Override
+  public void onHostResume() {
+    //noop
+  }
+
+  @Override
+  public void onHostPause() {
+    //noop
+  }
+
+  @Override
+  public void onHostDestroy() {
+    Log.i(NAME, "Unloading FMOD...");
+    org.fmod.FMOD.close();
   }
 }
