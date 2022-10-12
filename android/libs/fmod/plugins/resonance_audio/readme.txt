@@ -1,4 +1,4 @@
-# Resonance Audio SDK for [FMOD](http://www.fmod.com) v1.0
+# Resonance Audio SDK for [FMOD](https://www.fmod.com) v1.0
 
 Enables high-quality spatial audio on mobile and desktop platforms.
 
