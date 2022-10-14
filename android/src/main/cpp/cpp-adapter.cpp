@@ -12,10 +12,11 @@
 using namespace facebook;
 using namespace std;
 
-JavaVM *java_vm;
+JavaVM *javaVm;
+JNIEnv *jniEnv;
 
 void installSoundEngineHostObject(jsi::Runtime &jsiRuntime, ambientify::RuntimeExecutor rtEx, std::shared_ptr<facebook::react::CallInvoker> jsCallInvoker) {
-    ambientify::SoundEngineHostObject soundEngineObj{std::move(jsCallInvoker), std::move(rtEx)};
+    ambientify::SoundEngineHostObject soundEngineObj{std::move(jsCallInvoker), std::move(rtEx), jniEnv, javaVm};
     shared_ptr<ambientify::SoundEngineHostObject> binding = make_shared<ambientify::SoundEngineHostObject>(move(soundEngineObj));
     auto object = jsi::Object::createFromHostObject(jsiRuntime, binding);
 
@@ -44,12 +45,15 @@ Java_com_ambientifysoundengine_ASoundEngineModule_nativeInstall(JNIEnv *env, jcl
             };
 
     if (runtime) {
+        jniEnv = env;
         installSoundEngineHostObject(*runtime, runtimeExecutor, callInvoker);
     }
-
-    env->GetJavaVM(&java_vm);
 }
 
+JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *) {
+    javaVm = vm;
+    return jni::initialize(vm, [] {});
+}
 
 
 

@@ -5,7 +5,7 @@
 
 FMOD_RESULT F_CALLBACK ambientify::SoundEngine::channelCallback(FMOD_CHANNELCONTROL *channelControl, FMOD_CHANNELCONTROL_TYPE controlType,
                                                                 FMOD_CHANNELCONTROL_CALLBACK_TYPE callbackType, void *commanData1, void *commanData2) {
-    std::shared_ptr<ambientify::SoundEngine> soundEngine = ambientify::SoundEngine::GetInstance();
+    std::shared_ptr<ambientify::SoundEngine> soundEngine = ambientify::SoundEngine::GetInstance( nullptr, nullptr);
 
     auto _ch = reinterpret_cast<FMOD::Channel *>(channelControl);
     void *userData;
@@ -50,7 +50,8 @@ std::vector<std::shared_ptr<ambientify::EngineChannel>> ambientify::SoundEngine:
 std::shared_ptr<ambientify::EngineChannel> getChannelById(int channelId) {
     using namespace ambientify;
     if (channelId < 0 || channelId >= SoundEngine::channels.size()) {
-        throw commons::ASoundEngineException(fmt::format("Channel with id {} does not exist.", channelId));
+        throw commons::ASoundEngineException(
+                fmt::format("Channel with id {} does not exist.", channelId));
     } else {
         return SoundEngine::channels[channelId];
     }
@@ -58,23 +59,31 @@ std::shared_ptr<ambientify::EngineChannel> getChannelById(int channelId) {
 
 void ambientify::SoundEngine::update() {
     while (!_stopped) {
-//        LOG_DEBUG("SoundEngine::update() before system update");
-        result = system->update();
-//        LOG_DEBUG("SoundEngine::update(), result: %d", result);
-        ERRCHECK(result);
-        for (auto &channel : channels) {
-            if (!channel) break;
-            result = channel->update();
-            if (result == FMOD_ERR_INVALID_HANDLE) { break; }
-            else
-                ERRCHECK(result);
+        if (env) {
+            if (!isEngineReady) {
+                const auto error = jvm->AttachCurrentThread( &env, nullptr);
+                if (error) {
+                    LOG_ERR("Failed to attach thread to JVM. Error: %d", error);
+                    throw commons::ASoundEngineException(fmt::format("Failed to attach thread to JVM. Error: {}", error));
+                    return;
+                }
+                isEngineReady = true;
+            }
+            result = system->update();
+            ERRCHECK(result);
+            for (auto &channel: channels) {
+                if (!channel) break;
+                result = channel->update();
+                if (result == FMOD_ERR_INVALID_HANDLE) { break; }
+                else
+                    ERRCHECK(result);
+            }
         }
-        isEngineReady = true;
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 }
 
-ambientify::SoundEngine::SoundEngine() {
+ambientify::SoundEngine::SoundEngine(JNIEnv *env, JavaVM *javaVm): env(env), jvm(javaVm) {
     result = FMOD::System_Create(&system);
     ERRCHECK(result);;
     result = system->setSoftwareFormat(24000, FMOD_SPEAKERMODE_STEREO, 2);

@@ -3,6 +3,7 @@
 //
 #pragma once
 
+#include <jni.h>
 #include "common.h"
 #include "EngineChannel.h"
 
@@ -14,9 +15,11 @@ namespace ambientify {
 
         ~SoundEngine();
 
-        static std::shared_ptr<SoundEngine> GetInstance() {
+        JNIEnv *env;
+        JavaVM *jvm;
+        static std::shared_ptr<SoundEngine> GetInstance(JNIEnv *jniEnv, JavaVM *javaVm) {
             if (_instance == nullptr) {
-                _instance = std::shared_ptr<SoundEngine>(new SoundEngine());
+                _instance = std::shared_ptr<SoundEngine>(new SoundEngine(jniEnv, javaVm));
             }
             return _instance;
         }
@@ -70,7 +73,7 @@ namespace ambientify {
         static std::vector<std::shared_ptr<ambientify::EngineChannel>> channels;
 
     private:
-        SoundEngine();
+        SoundEngine(JNIEnv *jniEnv, JavaVM *javaVm);
 
         static std::shared_ptr<SoundEngine> _instance;
         static constexpr auto TAG = "ASoundEngine";

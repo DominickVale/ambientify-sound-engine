@@ -13,10 +13,14 @@ using namespace facebook;
 namespace ambientify {
     class JSI_EXPORT SoundEngineHostObject : public jsi::HostObject {
     public:
+        JNIEnv *jniEnv;
+        JavaVM *javaVm;
 
-        explicit SoundEngineHostObject(std::shared_ptr<react::CallInvoker> callInvoker, RuntimeExecutor rtEx) : _callInvoker(callInvoker),
-                                                                                                                runtimeExecutor(rtEx) {
-            soundEngine = SoundEngine::GetInstance();
+        explicit SoundEngineHostObject(std::shared_ptr<react::CallInvoker> callInvoker,
+                                       RuntimeExecutor rtEx, JNIEnv *jniEnv, JavaVM *javaVm)
+                : _callInvoker(callInvoker),
+                  runtimeExecutor(rtEx), jniEnv(jniEnv), javaVm(javaVm) {
+            soundEngine = SoundEngine::GetInstance(jniEnv, javaVm);
             tpool = std::make_shared<ThreadPool>(1);
             __android_log_print(ANDROID_LOG_DEBUG, TAG, "SoundEngineHostObject() created.");
         }
