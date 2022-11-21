@@ -1,5 +1,7 @@
 import { NativeModules } from 'react-native';
 
+const LOG_ID = '[Ambientify-sound-engine]: '
+
 export type AmbientifyChannelRandomizationSettings = {
   times: number;
   minutes: number;
@@ -32,19 +34,29 @@ export type AmbientifySoundState = {
   sounds: Array<AmbientifyChannelState>;
 };
 
+function isInstanceReady(): boolean {
+  //@ts-ignore
+  return Boolean(global?._AmbientifySoundEngine?.isReady)
+}
+
 function install() {
-  // @ts-ignore
-  if (global._AmbientifySoundEngine?.isReady) {
-    throw new Error('AmbientifySoundEngine already initialized.');
+  if (!NativeModules.ASoundEngine) {
+    console.error(LOG_ID + "NativeModules.ASoundEngine is undefined (module not loaded?)");
+    return
   }
+  console.log(LOG_ID + "Installing SoundEngine");
   const res = NativeModules.ASoundEngine.install();
   if (!res) {
     throw new Error('Could not initialize AmbientifySoundEngine.');
   }
 }
-install();
+
 
 function getInstance() {
+  console.log("[Ambientify-JS] retrieving instance");
+  if (!isInstanceReady()) {
+    install()
+  }
   // @ts-ignore
   return global._AmbientifySoundEngine;
 }
