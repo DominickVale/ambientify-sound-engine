@@ -1,0 +1,157 @@
+import { NativeModules } from 'react-native';
+
+// interface IAmbientifySoundEngine {
+//   isReady: boolean,
+//   nChannels: number,
+//   stopAllAsync(): Promise<AmbientifySoundState>,
+//   playAllAsync(): Promise<AmbientifySoundState> ,
+//   createChannelAsync( soundPath?: string, shouldPlay?: boolean): Promise<void>,
+//   loadChannelAsync( channelId: number, soundPath: string): Promise<AmbientifyChannelState>,
+//   unloadChannelAsync(channelId: number): Promise<AmbientifyChannelState>,
+//   resetChannelAsync(channelId: number): Promise<AmbientifyChannelState>,
+//   toggleChannelPlaybackAsync(channelID: number): Promise<boolean>,
+//   toggleChannelMutedAsync(channelID: number): Promise<boolean>,
+//   playChannelAsync(channelId: number): Promise<boolean>,
+//   stopChannelAsync(channelId: number): Promise<boolean>,
+//   setRandomizationEnabledAsync(channelId: number, enabled: boolean): Promise<AmbientifyChannelState>,
+//   setRandomizationSettingsAsync( channelId: number, newSettings: Partial<AmbientifyChannelRandomizationSettings>): Promise<AmbientifyChannelState>,
+//   setCrossfadingAsync(channelId: number, enabled: boolean): Promise<boolean>,
+//   setChannelVolumeAsync(channelID: number, volume: number, pan?: number): Promise<AmbientifyChannelState>,
+//   setMasterVolumeAsync(volume: number): Promise<number>,
+//   getSerializedStateAsync(): Promise<AmbientifySoundState>,
+//   setStatusAsync( channelId: number, newStatus: Partial<Omit<AmbientifyChannelState, 'id'>>): Promise<AmbientifyChannelState>,
+//   test(): 'OK' | undefined,
+// }
+
+declare global {
+  var _AmbientifySoundEngine: object | undefined;
+}
+
+export type AmbientifyChannelRandomizationSettings = {
+  times: number;
+  minutes: number;
+  panRange?: [number, number];
+  volumeRange?: [number, number];
+  pitchRange?: [number, number];
+};
+
+export type AmbientifyChannelState = {
+  currentFilePath: string | undefined;
+  id: number;
+  durationMs: number;
+  isLoaded: boolean;
+  isLoading: boolean;
+  isPlaying: boolean;
+  didJustFinish: boolean;
+  crossfadeEnabled: boolean;
+  isMuted: boolean;
+  volume: number;
+  pan: number;
+  pitch: number;
+  cfPercentageStart: number;
+  noUnload: boolean;
+  randomizationEnabled: boolean;
+  rSettings: AmbientifyChannelRandomizationSettings;
+}
+
+export type AmbientifySoundState = {
+  masterVolume: number;
+  sounds: Array<AmbientifyChannelState>;
+};
+
+const ASoundEngine = NativeModules.ASoundEngine
+  ? NativeModules.ASoundEngine
+  : new Proxy(
+      {},
+      {
+        get() {
+          throw new Error("Could not install ASoundEngine");
+        },
+      }
+    );
+
+ASoundEngine.install();
+
+const AmbientifySoundEngine = {
+  isReady(): boolean {
+    console.log("[Ambientify-JS]: About to access isReady.");
+    return ASoundEngine?.isReady || false;;
+  },
+  nChannels(): number {
+    return ASoundEngine.nChannels;
+  },
+  async stopAllAsync(): Promise<AmbientifySoundState> {
+    await ASoundEngine.stopAllAsync();
+    return ASoundEngine.getSerializedStateAsync();
+  },
+  async playAllAsync(): Promise<AmbientifySoundState> {
+    await ASoundEngine.playAllAsync();
+    return ASoundEngine.getSerializedStateAsync();
+  },
+  /*
+    @return number the index of the newly created channel
+  */
+  async createChannelAsync(
+    soundPath?: string,
+    shouldPlay: boolean = false
+  ): Promise<void> {
+    return ASoundEngine.createChannelAsync(soundPath, shouldPlay);
+  },
+  async loadChannelAsync(
+    channelId: number,
+    soundPath: string
+  ): Promise<AmbientifyChannelState> {
+    return ASoundEngine.loadChannelAsync(channelId, soundPath);
+  },
+  async unloadChannelAsync(channelId: number): Promise<AmbientifyChannelState> {
+    return ASoundEngine.unloadChannelAsync(channelId);
+  },
+  async resetChannelAsync(channelId: number): Promise<AmbientifyChannelState> {
+    return ASoundEngine.resetChannelAsync(channelId);
+  },
+  async toggleChannelPlaybackAsync(channelID: number): Promise<boolean> {
+    return ASoundEngine.toggleChannelPlaybackAsync(channelID);
+  },
+  async toggleChannelMutedAsync(channelID: number): Promise<boolean> {
+    return ASoundEngine.toggleChannelMutedAsync(channelID);
+  },
+  async playAsync(channelId: number): Promise<boolean> {
+    return ASoundEngine.playChannelAsync(channelId);
+  },
+  async stopAsync(channelId: number): Promise<boolean> {
+    return ASoundEngine.stopChannelAsync(channelId);
+  },
+  async setRandomizationEnabledAsync(channelId: number, enabled: boolean): Promise<AmbientifyChannelState> {
+    return ASoundEngine.setRandomizationEnabledAsync(channelId, enabled);
+  },
+  async setRandomizationSettingsAsync(
+    channelId: number,
+    newSettings: Partial<AmbientifyChannelRandomizationSettings>
+  ): Promise<AmbientifyChannelState> {
+    return ASoundEngine.setRandomizationSettingsAsync(channelId, newSettings);
+  },
+  async setCrossfadingAsync(channelId: number, enabled: boolean): Promise<boolean> {
+    return ASoundEngine.setCrossfadingAsync(channelId, enabled);
+  },
+  async setChannelVolumeAsync(channelID: number, volume: number, pan?: number): Promise<AmbientifyChannelState> {
+    //@todo replace -2 with a different overridden method
+    return ASoundEngine.setChannelVolumeAsync(channelID, volume, pan || -2);
+  },
+  async setMasterVolumeAsync(volume: number): Promise<number> {
+    return ASoundEngine.setMasterVolumeAsync(volume);
+  },
+  async getSerializedStateAsync(): Promise<AmbientifySoundState> {
+    return ASoundEngine.getSerializedStateAsync();
+  },
+  async setStatusAsync(
+    channelId: number,
+    newStatus: Partial<Omit<AmbientifyChannelState, 'id'>>
+  ): Promise<AmbientifyChannelState> {
+    return ASoundEngine.setStatusAsync(channelId, newStatus);
+  },
+  test(): 'OK' | undefined {
+    return ASoundEngine.test();
+  },
+};
+
+export default AmbientifySoundEngine;

@@ -1,9 +1,14 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
 import java.nio.file.Paths
 
 def fmodApiRoot = project.file('./libs/fmod/api').absolutePath
 
 buildscript {
-
+  ext {
+    kotlinVersion = '1.7.10'
+    androidToolsVersion = '4.2.1'
+  }
   repositories {
     google()
     mavenCentral()
@@ -13,7 +18,8 @@ buildscript {
     }
   }
   dependencies {
-    classpath 'com.android.tools.build:gradle:4.2.1'
+    classpath "com.android.tools.build:gradle:${project.ext.androidToolsVersion}"
+    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${project.ext.kotlinVersion}"
   }
 }
 
@@ -136,6 +142,11 @@ repositories {
 }
 
 dependencies {
+  implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:${project.ext.kotlinVersion}"
+  implementation 'androidx.activity:activity-ktx:1.7.0-alpha02'
+  implementation "androidx.media:media:1.6.0"
+  implementation "androidx.work:work-runtime-ktx:2.7.1"
+  implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4'
   //noinspection GradleDynamicVersion
   implementation 'com.facebook.react:react-native:+'
   //noinspection GradleDynamicVersion

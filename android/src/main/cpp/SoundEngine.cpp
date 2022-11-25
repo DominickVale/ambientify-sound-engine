@@ -84,6 +84,15 @@ void ambientify::SoundEngine::update() {
 }
 
 ambientify::SoundEngine::SoundEngine(JNIEnv *env, JavaVM *javaVm): env(env), jvm(javaVm) {
+//    result = FMOD::Debug_Initialize(
+//            FMOD_DEBUG_LEVEL_LOG |
+//            FMOD_DEBUG_TYPE_MEMORY |
+//            FMOD_DEBUG_TYPE_FILE |
+//            FMOD_DEBUG_TYPE_CODEC |
+//            FMOD_DEBUG_TYPE_TRACE |
+//            FMOD_DEBUG_DISPLAY_TIMESTAMPS |
+//            FMOD_DEBUG_DISPLAY_LINENUMBERS |
+//            FMOD_DEBUG_DISPLAY_THREAD  ,FMOD_DEBUG_MODE_TTY,  0, 0);
     result = FMOD::System_Create(&system);
     ERRCHECK(result);;
     result = system->setSoftwareFormat(24000, FMOD_SPEAKERMODE_STEREO, 2);
@@ -257,4 +266,27 @@ double ambientify::SoundEngine::getMasterVolume() {
     result = masterGroup->getVolume(&vol);
     ERRCHECK(result);
     return (double) vol;
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_com_ambientifysoundengine_EngineService_toggleMaster(JNIEnv *env, jobject thiz) {
+    if (ambientify::SoundEngine::isEngineReady) {
+        //jvm param not needed
+        std::shared_ptr<ambientify::SoundEngine> engine = ambientify::SoundEngine::GetInstance(env,
+                                                                                               nullptr);
+        const auto isPlaying = std::any_of(
+                engine->channels.begin(),
+                engine->channels.end(),
+                [](const std::shared_ptr<ambientify::EngineChannel> &ch) {
+                    return ch->isPlaying;
+                });
+        if (isPlaying) {
+            engine->stopAll();
+            return false;
+        } else {
+            engine->playAll();
+            return true;
+        }
+    } else return false;
 }

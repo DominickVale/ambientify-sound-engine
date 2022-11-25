@@ -58,6 +58,12 @@ namespace ambientify {
         const auto propName = name.utf8(runtime);
         const auto funcName = "_AmbientifySoundEngine." + propName;
 
+        if(!isJsiInstalled) {
+            isJsiInstalled = true;
+            LOG_DEBUG("About to call notifyJS");
+            (*notifyJS)();
+        }
+
         if (soundEngine) {
             if (propName == "isReady") {
                 return {soundEngine->isEngineReady};
@@ -458,7 +464,7 @@ namespace ambientify {
                                     runtime, [&](jsi::Runtime &runtime, std::shared_ptr<a_utils::Promise> promise) {
                                         auto fn = [&, promise = std::move(promise)]() {
                                             runtimeExecutor([&, promise](jsi::Runtime &rt3) {
-                                                if (soundEngine->isEngineReadyFn()) {
+                                                if (SoundEngine::isEngineReady) {
                                                     if (!SoundEngine::channels.empty()) {
                                                         auto jsiState = jsi::Object(rt3);
                                                         auto array = jsi::Array(rt3, SoundEngine::channels.size());
@@ -629,7 +635,6 @@ namespace ambientify {
                         });
             }
         }
-
         return jsi::Value::undefined();
     }
 

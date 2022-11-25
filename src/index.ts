@@ -2,6 +2,11 @@ import { NativeModules } from 'react-native';
 
 const LOG_ID = '[Ambientify-sound-engine]: '
 
+export type AmbientifyNotificationState = {
+  isPlaying: boolean,
+  contentText: string
+}
+
 export type AmbientifyChannelRandomizationSettings = {
   times: number;
   minutes: number;
@@ -34,36 +39,39 @@ export type AmbientifySoundState = {
   sounds: Array<AmbientifyChannelState>;
 };
 
-function isInstanceReady(): boolean {
-  //@ts-ignore
-  return Boolean(global?._AmbientifySoundEngine?.isReady)
-}
-
 function install() {
   if (!NativeModules.ASoundEngine) {
     console.error(LOG_ID + "NativeModules.ASoundEngine is undefined (module not loaded?)");
     return
   }
   console.log(LOG_ID + "Installing SoundEngine");
-  const res = NativeModules.ASoundEngine.install();
-  if (!res) {
-    throw new Error('Could not initialize AmbientifySoundEngine.');
-  }
+  NativeModules.ASoundEngine.install();
 }
 
 
 function getInstance() {
   console.log("[Ambientify-JS] retrieving instance");
-  if (!isInstanceReady()) {
-    install()
-  }
   // @ts-ignore
   return global._AmbientifySoundEngine;
 }
 
 const AmbientifySoundEngine = {
+  updateNotification(newNotificationState: Partial<AmbientifyNotificationState>) {
+    NativeModules.ASoundEngine.updateNotification(newNotificationState);
+  },
+  setTimerOptions(value: number){
+    console.log("[Ambientify-JS] setting timer options!");
+    return NativeModules.ASoundEngine.setTimerOptions(value);
+  },
+  getCurrentTimerValue(): string {
+    console.log("[Ambientify-JS] getting timer options!");
+    return NativeModules.ASoundEngine.getCurrentTimerValue();
+  },
+  init() {
+    install()
+  },
   isReady(): boolean {
-    return getInstance().isReady;
+    return getInstance()?.isReady || false;
   },
   nChannels(): number {
     return getInstance().nChannels;
@@ -89,6 +97,8 @@ const AmbientifySoundEngine = {
     channelId: number,
     soundPath: string
   ): Promise<AmbientifyChannelState> {
+    console.log("Loading channel, ", channelId, soundPath);
+
     return getInstance().loadChannelAsync(channelId, soundPath);
   },
   async unloadChannelAsync(channelId: number): Promise<AmbientifyChannelState> {

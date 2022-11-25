@@ -24,11 +24,7 @@ namespace ambientify {
             return _instance;
         }
 
-        bool isEngineReady = false;
-
-        bool isEngineReadyFn() {
-            return isEngineReady;
-        }
+        inline static bool isEngineReady = false;
 
         void update();
 
@@ -82,8 +78,6 @@ namespace ambientify {
 
         FMOD::System *system{};
         FMOD_RESULT result;
-
-        std::shared_ptr<std::function<void(std::shared_ptr<std::vector<SerializedChannelStatus *>>)>> _onStatusUpdate;
 
         static FMOD_RESULT F_CALLBACK channelCallback(FMOD_CHANNELCONTROL *, FMOD_CHANNELCONTROL_TYPE,
                                                       FMOD_CHANNELCONTROL_CALLBACK_TYPE, void *, void *);
