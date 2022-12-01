@@ -3,14 +3,13 @@ package com.ambientifysoundengine
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flow
 
-class CountdownTimer(private var valueMs: Long, private val timerIsRunning: (Boolean) -> Unit = {}) {
 
+class CountdownTimer(private var valueMs: Long, private val timerIsRunning: (Boolean) -> Unit = {}) {
   private var isRunning = true
   private var isEnded = false
-  private var isCanceled = false
 
   val get = flow<Long> {
-    while (!isEnded && !isCanceled) {
+    while (!isEnded) {
       if (isRunning) {
         //timer is not canceled or paused
         valueMs -= 1000
@@ -37,12 +36,4 @@ class CountdownTimer(private var valueMs: Long, private val timerIsRunning: (Boo
     isRunning = false
     timerIsRunning(false)
   }
-
-  fun cancel() {
-    isCanceled = true
-    isRunning = false
-    timerIsRunning(false)
-  }
-
-  fun wasCanceled() = isCanceled
 }

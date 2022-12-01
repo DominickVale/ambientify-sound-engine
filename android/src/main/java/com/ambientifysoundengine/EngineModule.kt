@@ -12,18 +12,26 @@ import androidx.core.app.NotificationManagerCompat
 import com.ambientifysoundengine.RemoteControlReceiver.Companion.createBroadcastIntent
 import com.facebook.react.bridge.*
 import com.facebook.react.module.annotations.ReactModule
+import org.fmod.FMOD
+
 
 @ReactModule(name = EngineModule.NAME)
 class EngineModule(private val reactContext: ReactApplicationContext) :
-  ReactContextBaseJavaModule(reactContext), LifecycleEventListener {
+  ReactContextBaseJavaModule(reactContext) {
 
   private var mNotificationManager: NotificationManager
 
   companion object {
     const val NAME = "ASoundEngine"
+
     const val NOTIF_ID = 1
     const val NOTIF_CH_ID = "ambientify_channel"
     const val NOTIF_CH_NAME = "Ambientify Notification"
+
+    const val STATUS_NOTIF_ISPLAYING = "isPlaying"
+    const val STATUS_NOTIF_CONTENT = "contentText"
+
+    const val STATUS_NOTIF_TIMER_VAL = "timerValue"
   }
 
   private fun hasNotifPermission(): Boolean {
@@ -31,7 +39,6 @@ class EngineModule(private val reactContext: ReactApplicationContext) :
   }
 
   init {
-    reactContext.addLifecycleEventListener(this)
     StateSingleton.reactContext = this.reactContext
     StateSingleton.hasNotifPermission = hasNotifPermission()
     mNotificationManager =
@@ -39,9 +46,7 @@ class EngineModule(private val reactContext: ReactApplicationContext) :
     createNotificationChannel()
   }
 
-  override fun getName(): String {
-    return NAME
-  }
+  override fun getName() = NAME
 
   @ReactMethod(isBlockingSynchronousMethod = true)
   fun install() {
@@ -63,7 +68,7 @@ class EngineModule(private val reactContext: ReactApplicationContext) :
     val intent = Intent(reactContext, EngineService::class.java)
     if(timerValue > 0) {
       intent.action = EngineService.ACTION_START_TIMER
-      intent.putExtra("timerValue", timerValue)
+      intent.putExtra(STATUS_NOTIF_TIMER_VAL, timerValue)
     } else {
       intent.action = EngineService.ACTION_STOP_TIMER
       createBroadcastIntent(reactContext, EngineService.ACTION_STOP_TIMER, null)
@@ -80,24 +85,9 @@ class EngineModule(private val reactContext: ReactApplicationContext) :
   fun updateNotification(state: ReadableMap){
     val intent = Intent(reactContext, EngineService::class.java)
     intent.action = EngineService.ACTION_UPDATE_NOTIFICATION
-    intent.putExtra("isPlaying", state.getBoolean("isPlaying"))
-    intent.putExtra("contentText", state.getString("contentText"))
+    intent.putExtra(STATUS_NOTIF_ISPLAYING, state.getBoolean(STATUS_NOTIF_ISPLAYING))
+    intent.putExtra(STATUS_NOTIF_CONTENT, state.getString(STATUS_NOTIF_CONTENT))
     reactContext.startService(intent)
-  }
-
-  override fun onHostResume() {
-    Log.i(NAME, "RESUME")
-    //noop
-  }
-
-  override fun onHostPause() {
-    Log.i(NAME, " PAUSE Unloading FMOD...")
-    //todo
-  }
-
-  override fun onHostDestroy() {
-    Log.i(NAME, " DESTROY Unloading FMOD...")
-    // noop
   }
 
   private fun createNotificationChannel() {

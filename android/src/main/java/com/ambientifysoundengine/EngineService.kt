@@ -14,8 +14,10 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import android.support.v4.media.session.MediaSessionCompat
 import androidx.media.app.NotificationCompat.MediaStyle
-import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import com.ambientifysoundengine.EngineModule.Companion.STATUS_NOTIF_CONTENT
+import com.ambientifysoundengine.EngineModule.Companion.STATUS_NOTIF_ISPLAYING
+import com.ambientifysoundengine.EngineModule.Companion.STATUS_NOTIF_TIMER_VAL
 import com.ambientifysoundengine.RemoteControlReceiver.Companion.createBroadcastIntent
 import com.facebook.react.bridge.RuntimeExecutor
 import com.facebook.react.modules.core.DeviceEventManagerModule
@@ -28,11 +30,7 @@ private const val LOG_TAG = "ASoundEngineService"
 private var isServiceRunning = false
 
 /* TODO:
-  - play/pause should toggleMaster (to implement as well)
-  - (fix) expanding notification makes both play pause buttons appear
   - use res strings instead of hardcoded strings
-  - add start/stop timer
-  - add preset name info in notification
 */
 class EngineService : Service() {
 
@@ -46,7 +44,6 @@ class EngineService : Service() {
 
     fun isRunning() = isServiceRunning
 
-    // emit a "jsi_loaded" event to JS via RCTDeviceEventEmitter
     @JvmStatic
     fun bindNotifyJS() {
       StateSingleton.reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
@@ -60,10 +57,9 @@ class EngineService : Service() {
     }
   }
 
-  fun getContext() = this
-
   private var wakeLock: PowerManager.WakeLock? = null
   private lateinit var countdownTimer: CountdownTimer
+  private lateinit var countdownJob: Job
   private lateinit var notificationJob: Job
 
   private val mNotificationBuilder by lazy {
@@ -73,6 +69,9 @@ class EngineService : Service() {
     )
   }
   private val mNotificationManager by lazy { NotificationManagerCompat.from(this) }
+  private val playPauseBroadcast by lazy { createBroadcastIntent(this@EngineService, ACTION_PLAYPAUSE, null) }
+  private val stopBroadcast by lazy { createBroadcastIntent(this@EngineService, ACTION_STOP, null) }
+
   private val mediaStyle: MediaStyle by lazy {
     val session = MediaSessionCompat(this, "tag").sessionToken
     MediaStyle().setMediaSession(session)
@@ -83,14 +82,11 @@ class EngineService : Service() {
     PendingIntent.getActivity(this, 1, i, PendingIntent.FLAG_IMMUTABLE)
   }
 
-  private val _elapsedTime: MutableLiveData<Long> = MutableLiveData(0L)
-  val elapsedTime: LiveData<Long> = _elapsedTime
-
+  private val _timerElapsedTime: MutableLiveData<Long> = MutableLiveData(0L)
   private val _isTimerRunning: MutableLiveData<Boolean> = MutableLiveData(true)
-  val isTimerRunning: LiveData<Boolean> = _isTimerRunning
 
   private var isEnginePlaying = false
-  private var currentNotificationText = "Nothing is playing..."
+  private var currentNotificationText = "No sound loaded..."
 
   private val serviceScope = CoroutineScope(Dispatchers.IO)
 
@@ -115,38 +111,37 @@ class EngineService : Service() {
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     super.onStartCommand(intent, flags, startId)
-    Log.e(LOG_TAG, "Called onStartCommand!")
-    val action = intent?.action
-    when (action) {
+    when (intent?.action) {
       null -> {
         Log.e(LOG_TAG, "onStartCommand: action is null")
         return START_NOT_STICKY
       }
-      ACTION_STOP -> {
-        stopService()
-      }
+      ACTION_STOP -> stopService()
       ACTION_PLAYPAUSE -> {
         isEnginePlaying = toggleMaster()
         notificationTogglePlayNotifyJS(isEnginePlaying)
         updateNotificationActions()
       }
       ACTION_START_TIMER -> {
-        if (!intent.hasExtra("timerValue")) {
-          Log.e(LOG_TAG, "onStartCommand: timerValue not set for $ACTION_START_TIMER")
+        if (!intent.hasExtra(STATUS_NOTIF_TIMER_VAL)) {
+          Log.e(LOG_TAG, "onStartCommand: $STATUS_NOTIF_TIMER_VAL not set for $ACTION_START_TIMER")
           return START_NOT_STICKY
         }
-        val timerValue = intent.getDoubleExtra("timerValue", 0.0).toLong()
+        if (this::countdownTimer.isInitialized) {
+          countdownJob.cancel()
+        }
+        val timerValue = intent.getDoubleExtra(STATUS_NOTIF_TIMER_VAL, 0.0).toLong()
         StateSingleton.timerValHuman = timerValue.to24HourFormat()
         countdownTimer = CountdownTimer(timerValue) { isTimerRunning ->
           serviceScope.launch(Dispatchers.Main) {
             _isTimerRunning.value = isTimerRunning
           }
         }
-        serviceScope.launch { observeCountdownTimer(countdownTimer) }
+        countdownJob = serviceScope.launch { observeCountdownTimer(countdownTimer) }
       }
       ACTION_STOP_TIMER -> {
         if (this::countdownTimer.isInitialized) {
-          countdownTimer.cancel()
+          countdownJob.cancel()
           StateSingleton.timerValHuman = ""
           updateNotificationText("")
         }
@@ -171,12 +166,16 @@ class EngineService : Service() {
         startEngine()
       }
       ACTION_UPDATE_NOTIFICATION -> {
-        if (intent.hasExtra("isPlaying")) {
-          isEnginePlaying = intent.getBooleanExtra("isPlaying", false)
+        if (intent.hasExtra(STATUS_NOTIF_ISPLAYING)) {
+          isEnginePlaying = intent.getBooleanExtra(STATUS_NOTIF_ISPLAYING, false)
           updateNotificationActions()
         }
-        if (intent.hasExtra("contentText")) {
-          currentNotificationText = intent.getStringExtra("contentText") ?: "Nothing is playing..."
+        if (intent.hasExtra(STATUS_NOTIF_CONTENT)) {
+          val contentText = intent.getStringExtra(STATUS_NOTIF_CONTENT)
+          if(contentText != null){
+            currentNotificationText = if(contentText == "") "No sound loaded..."
+              else contentText
+          }
           updateNotificationText()
         }
       }
@@ -193,16 +192,16 @@ class EngineService : Service() {
         }
       }
       FMOD.close()
+      StateSingleton.reactContext.currentActivity?.finish()
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
         stopForeground(STOP_FOREGROUND_REMOVE)
       else stopForeground(true)
-      StateSingleton.reactContext.currentActivity?.finish()
       super.onDestroy()
       stopSelf()
       System.runFinalization()
       System.exit(0)
     } catch (e: Exception) {
-      Log.e(LOG_TAG, "Service stopped without being started: ${e.message}")
+      Log.e(LOG_TAG, "Service wasn't stopped correctly ${e.message}")
     }
   }
 
@@ -219,17 +218,17 @@ class EngineService : Service() {
       }
       System.loadLibrary("ambientifySoundEngine")
       FMOD.init(this)
-      Log.d(LOG_TAG, "Installing JSI (nativeInstall)...")
+      Log.d(LOG_TAG, "Installing JSI bindings...")
       val jsContext = StateSingleton.reactContext.javaScriptContextHolder
       if (jsContext.get() != 0L) {
         val runtimeExecutor = StateSingleton.reactContext.catalystInstance.runtimeExecutor
         val jsCallInvokerHolder =
           StateSingleton.reactContext.catalystInstance.jsCallInvokerHolder as CallInvokerHolderImpl
         nativeInstall(jsContext.get(), runtimeExecutor, jsCallInvokerHolder)
+        Log.d(LOG_TAG, "JSI bindings installed")
       } else {
         Log.e(LOG_TAG, "JSI Runtime is not available in debug mode")
       }
-      Log.d(LOG_TAG, "JSI bindings installed")
     } catch (exception: Exception) {
       Log.e(LOG_TAG, "Exception trying to load native libs: ", exception)
     }
@@ -253,10 +252,12 @@ class EngineService : Service() {
     return mNotificationBuilder.apply {
       setSmallIcon(R.mipmap.ic_launcher)
       setLargeIcon(bitMap)
+      setSilent(true)
       setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
       priority = NotificationCompat.PRIORITY_HIGH
-      addAction(R.drawable.reset, "Stop", createBroadcastIntent(this@EngineService, ACTION_STOP, null))
-      setStyle(mediaStyle.setShowActionsInCompactView(0))
+      addAction(R.drawable.play, "Play", playPauseBroadcast)
+      addAction(R.drawable.reset, "Stop", stopBroadcast)
+      setStyle(mediaStyle.setShowActionsInCompactView(0, 1))
       setContentTitle("Ambientify")
       setContentText(contentText)
       setContentIntent(mainActivityIntent)
@@ -275,15 +276,13 @@ class EngineService : Service() {
   }
 
   private fun updateNotificationActions() {
-    val playPauseBroadcast = createBroadcastIntent(this@EngineService, ACTION_PLAYPAUSE, null)
-    // check if masterToggled for play/pause
     mNotificationBuilder.apply {
       clearActions()
       if (isEnginePlaying)
         addAction(R.drawable.pause, "Pause", playPauseBroadcast)
       else
         addAction(R.drawable.play, "Play", playPauseBroadcast)
-      addAction(R.drawable.reset, "Stop", createBroadcastIntent(this@EngineService, ACTION_STOP, null))
+      addAction(R.drawable.reset, "Stop", stopBroadcast)
 
       mNotificationBuilder.setStyle(mediaStyle)
       mNotificationManager.notify(EngineModule.NOTIF_ID, mNotificationBuilder.build())
@@ -292,11 +291,17 @@ class EngineService : Service() {
 
   private suspend fun observeCountdownTimer(timer: CountdownTimer) = timer.get
     .onCompletion {
-      if (!timer.wasCanceled()) stopService()
+      when (it) {
+        // only stop if completed successfully (no exceptions)
+        null -> {
+          stopService()
+        }
+      }
+
     }
     .collect { millis ->
       withContext(Dispatchers.Main) {
-        _elapsedTime.value = millis
+        _timerElapsedTime.value = millis
 
         if (notificationJob.isCompleted) {
           val millisFormat = millis.to24HourFormat()

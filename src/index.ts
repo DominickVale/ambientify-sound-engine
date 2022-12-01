@@ -1,5 +1,6 @@
 import { NativeModules } from 'react-native';
 
+
 const LOG_ID = '[Ambientify-sound-engine]: '
 
 export type AmbientifyNotificationState = {
@@ -39,6 +40,7 @@ export type AmbientifySoundState = {
   sounds: Array<AmbientifyChannelState>;
 };
 
+
 function install() {
   if (!NativeModules.ASoundEngine) {
     console.error(LOG_ID + "NativeModules.ASoundEngine is undefined (module not loaded?)");
@@ -48,9 +50,7 @@ function install() {
   NativeModules.ASoundEngine.install();
 }
 
-
 function getInstance() {
-  console.log("[Ambientify-JS] retrieving instance");
   // @ts-ignore
   return global._AmbientifySoundEngine;
 }
@@ -60,11 +60,9 @@ const AmbientifySoundEngine = {
     NativeModules.ASoundEngine.updateNotification(newNotificationState);
   },
   setTimerOptions(value: number){
-    console.log("[Ambientify-JS] setting timer options!");
     return NativeModules.ASoundEngine.setTimerOptions(value);
   },
   getCurrentTimerValue(): string {
-    console.log("[Ambientify-JS] getting timer options!");
     return NativeModules.ASoundEngine.getCurrentTimerValue();
   },
   init() {
