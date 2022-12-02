@@ -280,14 +280,18 @@ void ambientify::EngineChannel::setVolume(float volume, float pan) {
 }
 
 void ambientify::EngineChannel::_updateSerializedStatus() {
+    // playing should be true if either parent of secondary channels are playing
+    bool playing;
+    if(_crossfadeEnabled) {
+        playing = isPlaying || (_secondaryChannel &&
+                                 _secondaryChannel->isPlaying);
+    } else {
+        playing = (_randomizationEnabled && !_didJustPause) || isPlaying;
+    }
+    _serializedStatus.isPlaying = playing;
     _serializedStatus.currentFilePath = _currentFilePath;
     _serializedStatus.isLoaded = _isLoaded;
     _serializedStatus.isLoading = _isLoading;
-    // isPlaying should be true if either parent of secondary channels are playing
-    _serializedStatus.isPlaying = _crossfadeEnabled ? _isPlaying || (_secondaryChannel &&
-                                                                     _secondaryChannel->_isPlaying)
-                                                    :
-                                  (_randomizationEnabled && !_didJustPause) || _isPlaying;
     _serializedStatus.didJustFinish = _didJustFinish;
     _serializedStatus.pan = _pan;
     _serializedStatus.pitch = _pitch;
@@ -487,6 +491,10 @@ void ambientify::EngineChannel::setRandomizationEnabled(bool shouldRandomize) {
         ERRCHECK(_result);
         if (isPlaying) stop();
     }
+
+    // todo: find a cleaner way to not show channel as playing when randomization
+    // is first turned on
+    _didJustPause = true;
     _updateSerializedStatus();
 }
 
