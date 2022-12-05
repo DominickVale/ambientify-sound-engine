@@ -275,12 +275,15 @@ Java_com_ambientifysoundengine_EngineService_toggleMaster(JNIEnv *env, jobject t
         //jvm param not needed
         std::shared_ptr<ambientify::SoundEngine> engine = ambientify::SoundEngine::GetInstance(env,
                                                                                                nullptr);
+        bool noneLoaded = true;
         const auto isPlaying = std::any_of(
                 engine->channels.begin(),
                 engine->channels.end(),
-                [](const std::shared_ptr<ambientify::EngineChannel> &ch) {
+                [&noneLoaded](const std::shared_ptr<ambientify::EngineChannel> &ch) {
+                    if (ch->isLoaded) noneLoaded = false;
                     return ch->isPlaying;
                 });
+        if (noneLoaded) return false;
         if (isPlaying) {
             engine->stopAll();
             return false;
@@ -288,5 +291,6 @@ Java_com_ambientifysoundengine_EngineService_toggleMaster(JNIEnv *env, jobject t
             engine->playAll();
             return true;
         }
-    } else return false;
+    }
+    return false;
 }
