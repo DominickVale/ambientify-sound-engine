@@ -15,11 +15,10 @@ namespace ambientify {
     public:
         JNIEnv *jniEnv;
         JavaVM *javaVm;
-        std::shared_ptr<std::function<void()>> notifyJS;
 
         explicit SoundEngineHostObject(std::shared_ptr<react::CallInvoker> callInvoker,
-                                       RuntimeExecutor rtEx, JNIEnv *jniEnv, JavaVM *javaVm, std::shared_ptr<std::function<void()>> notifyJS)
-                : _callInvoker(callInvoker), runtimeExecutor(rtEx), jniEnv(jniEnv), javaVm(javaVm), notifyJS(notifyJS) {
+                                       RuntimeExecutor rtEx, JNIEnv *jniEnv, JavaVM *javaVm)
+                : _callInvoker(callInvoker), runtimeExecutor(rtEx), jniEnv(jniEnv), javaVm(javaVm){
             soundEngine = SoundEngine::GetInstance(jniEnv, javaVm);
             tpool = std::make_shared<ThreadPool>(1);
             __android_log_print(ANDROID_LOG_DEBUG, TAG, "SoundEngineHostObject() created.");
@@ -37,7 +36,6 @@ namespace ambientify {
         std::vector<jsi::PropNameID> getPropertyNames(jsi::Runtime &rt) override;
 
     private:
-        bool isJsiInstalled = false;
         std::shared_ptr<react::CallInvoker> _callInvoker;
         RuntimeExecutor runtimeExecutor;
         static constexpr auto TAG = "SoundEngineHostObject";

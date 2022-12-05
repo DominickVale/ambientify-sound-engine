@@ -46,14 +46,15 @@ class EngineService : Service() {
 
     @JvmStatic
     fun bindNotifyJS() {
+      Log.d(LOG_TAG, "bindNotifyJS() ")
       StateSingleton.reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-        .emit("ambientify.engine.jsiLoaded", null)
+        ?.emit("ambientify.engine.jsiLoaded", null) ?: Log.e(LOG_TAG, "bindNotifyJS() failed to emit event")
     }
 
     @JvmStatic
     fun notificationTogglePlayNotifyJS(isNowPlaying: Boolean) {
       StateSingleton.reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-        .emit("ambientify.engine.notifications.togglePlayback", isNowPlaying)
+        ?.emit("ambientify.engine.notifications.togglePlayback", isNowPlaying) ?: Log.e(LOG_TAG, "notificationTogglePlayNotifyJS() failed to emit event")
     }
   }
 

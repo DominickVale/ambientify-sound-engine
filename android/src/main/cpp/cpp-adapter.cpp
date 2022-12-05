@@ -16,22 +16,20 @@ JavaVM *javaVm;
 JNIEnv *jniEnv;
 
 void installSoundEngineHostObject(jsi::Runtime &jsiRuntime, ambientify::RuntimeExecutor rtEx, std::shared_ptr<facebook::react::CallInvoker> jsCallInvoker) {
-    auto notifyJS = [&]() {
-        LOG_DEBUG("notifyJS()");
-        javaVm->AttachCurrentThread(&jniEnv, nullptr);
-        jclass clazz = jniEnv->FindClass("com/ambientifysoundengine/EngineService");
-        jmethodID methodId = jniEnv->GetStaticMethodID(clazz, "bindNotifyJS", "()V");
-        if (methodId == nullptr) {
-            LOG_ERR("notifyJS native lambda -> methodId is null");
-        } else {
-            jniEnv->CallStaticVoidMethod(clazz, methodId);
-        }
-    };
-    ambientify::SoundEngineHostObject soundEngineObj{std::move(jsCallInvoker), std::move(rtEx), jniEnv, javaVm, std::make_shared<std::function<void()>>(notifyJS)};
+    ambientify::SoundEngineHostObject soundEngineObj{std::move(jsCallInvoker), std::move(rtEx), jniEnv, javaVm};
     shared_ptr<ambientify::SoundEngineHostObject> binding = make_shared<ambientify::SoundEngineHostObject>(move(soundEngineObj));
     auto object = jsi::Object::createFromHostObject(jsiRuntime, binding);
 
     jsiRuntime.global().setProperty(jsiRuntime, "_AmbientifySoundEngine", object);
+    LOG_DEBUG("_AmbientifySoundEngine jsi bindings installed, notifying JS...");
+    javaVm->AttachCurrentThread(&jniEnv, nullptr);
+    jclass clazz = jniEnv->FindClass("com/ambientifysoundengine/EngineService");
+    jmethodID methodId = jniEnv->GetStaticMethodID(clazz, "bindNotifyJS", "()V");
+    if (methodId == nullptr) {
+        LOG_ERR("notifyJS native lambda -> methodId is null");
+    } else {
+        jniEnv->CallStaticVoidMethod(clazz, methodId);
+    }
 }
 
 extern "C"

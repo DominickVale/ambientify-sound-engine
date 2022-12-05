@@ -58,12 +58,6 @@ namespace ambientify {
         const auto propName = name.utf8(runtime);
         const auto funcName = "_AmbientifySoundEngine." + propName;
 
-        if(!isJsiInstalled) {
-            isJsiInstalled = true;
-            LOG_DEBUG("About to call notifyJS");
-            (*notifyJS)();
-        }
-
         if (soundEngine) {
             if (propName == "isReady") {
                 return {soundEngine->isEngineReady};
