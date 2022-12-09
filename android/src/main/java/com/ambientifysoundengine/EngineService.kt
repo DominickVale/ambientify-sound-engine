@@ -22,6 +22,7 @@ import com.ambientifysoundengine.RemoteControlReceiver.Companion.createBroadcast
 import com.facebook.react.bridge.RuntimeExecutor
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.facebook.react.turbomodule.core.CallInvokerHolderImpl
+import com.facebook.soloader.SoLoader
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.onCompletion
 import org.fmod.FMOD
@@ -90,12 +91,6 @@ class EngineService : Service() {
   private var currentNotificationText = "No sound loaded..."
 
   private val serviceScope = CoroutineScope(Dispatchers.IO)
-
-  private external fun nativeInstall(
-    jsiPtr: Long,
-    runtimeExecutor: RuntimeExecutor,
-    callInvoker: CallInvokerHolderImpl
-  )
 
   private external fun toggleMaster(): Boolean
 
@@ -215,21 +210,12 @@ class EngineService : Service() {
   private fun loadLibs() {
     try {
       for (lib in BuildConfig.FMOD_LIBS) {
-        System.loadLibrary(lib)
+        SoLoader.loadLibrary(lib)
       }
-      System.loadLibrary("ambientifySoundEngine")
+      SoLoader.loadLibrary("ambientify-sound-engine")
       FMOD.init(this)
       Log.d(LOG_TAG, "Installing JSI bindings...")
-      val jsContext = StateSingleton.reactContext.javaScriptContextHolder
-      if (jsContext.get() != 0L) {
-        val runtimeExecutor = StateSingleton.reactContext.catalystInstance.runtimeExecutor
-        val jsCallInvokerHolder =
-          StateSingleton.reactContext.catalystInstance.jsCallInvokerHolder as CallInvokerHolderImpl
-        nativeInstall(jsContext.get(), runtimeExecutor, jsCallInvokerHolder)
-        Log.d(LOG_TAG, "JSI bindings installed")
-      } else {
-        Log.e(LOG_TAG, "JSI Runtime is not available in debug mode")
-      }
+      EngineBridge.instance.install(StateSingleton.reactContext)
     } catch (exception: Exception) {
       Log.e(LOG_TAG, "Exception trying to load native libs: ", exception)
     }

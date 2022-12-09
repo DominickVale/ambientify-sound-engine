@@ -20,6 +20,7 @@
 #include <ReactCommon/CallInvoker.h>
 #include <jsi/jsi.h>
 #include <fmt/format.h>
+#include <jni.h>
 #include "fmod.h"
 
 #include "utils/ThreadPool.h"
@@ -71,6 +72,13 @@ namespace a_utils {
         std::mt19937 e2(rd());
         std::uniform_real_distribution<> dist(min, max);
         return dist(e2);
+    }
+
+    static JNIEnv *attachCurrThread(JavaVM *jvm) {
+        JavaVMAttachArgs args{JNI_VERSION_1_6, nullptr, nullptr};
+        JNIEnv *env = nullptr;
+        jvm->AttachCurrentThread(&env, &args);
+        return env;
     }
 }
 

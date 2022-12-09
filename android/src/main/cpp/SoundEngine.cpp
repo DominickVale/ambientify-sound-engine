@@ -275,6 +275,7 @@ Java_com_ambientifysoundengine_EngineService_toggleMaster(JNIEnv *env, jobject t
         //jvm param not needed
         std::shared_ptr<ambientify::SoundEngine> engine = ambientify::SoundEngine::GetInstance(env,
                                                                                                nullptr);
+        engine->jvm->AttachCurrentThread(&env, nullptr);
         const auto isPlaying = std::any_of(
                 engine->channels.begin(),
                 engine->channels.end(),
