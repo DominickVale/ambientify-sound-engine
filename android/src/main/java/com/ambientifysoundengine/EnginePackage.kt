@@ -12,9 +12,9 @@ class EnginePackage : ReactPackage {
 
   override fun createViewManagers(
     reactContext: ReactApplicationContext
-  ): MutableList<ViewManager<View, ReactShadowNode<*>>> = mutableListOf()
+  ): List<ViewManager<View, ReactShadowNode<*>>> = listOf()
 
   override fun createNativeModules(
     reactContext: ReactApplicationContext
-  ): MutableList<NativeModule> = listOf(EngineModule(reactContext)).toMutableList()
+  ): List<NativeModule> = listOf(EngineModule(reactContext))
 }

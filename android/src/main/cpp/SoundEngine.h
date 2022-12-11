@@ -24,7 +24,9 @@ namespace ambientify {
             return _instance;
         }
 
-        inline static bool isEngineReady = false;
+        inline static bool isEngineRunning = false;
+
+        bool init(JNIEnv *jniEnv);
 
         void update();
 

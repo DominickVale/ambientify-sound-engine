@@ -42,18 +42,45 @@ export type AmbientifySoundState = {
 
 
 function install() {
-  if (!NativeModules.ASoundEngine) {
-    console.error(LOG_ID + "NativeModules.ASoundEngine is undefined (module not loaded?)");
+  if (!NativeModules?.ASoundEngine) {
+    console.error(LOG_ID + "ASoundEngine is undefined (module not loaded?)");
     return
   }
-  console.log(LOG_ID + "Installing SoundEngine");
-  NativeModules.ASoundEngine.install();
+  //@ts-ignore
+  if (global.__AmbientifySoundEngine == null) {
+    console.log(LOG_ID + "Installing SoundEngine");
+    NativeModules.ASoundEngine.install();
+  } else {
+    console.error(LOG_ID + "already loaded");
+    return
+  }
 }
+install()
 
 function getInstance() {
-  console.log("global: ", global);
+  console.log("getInstance()", global);
   // @ts-ignore
-  return global.__AmbientifySoundEngine;
+  return global.__AmbientifySoundEngine || {
+    isRunning: ()=>{},
+    nChannels: ()=>{},
+    reateChannelAsync: ()=>{},
+    etStatusAsync: ()=>{},
+    soadChannelAsync: ()=>{},
+    unloadChannelAsync: ()=>{},
+    playChannelAsync: ()=>{},
+    playAllAsync: ()=>{},
+    stopAllAsync: ()=>{},
+    stopChannelAsync: ()=>{},
+    setCrossfadingAsync: ()=>{},
+    setChannelVolumeAsync: ()=>{},
+    setMasterVolumeAsync: ()=>{},
+    toggleChannelPlaybackAsync: ()=>{},
+    getSerializedStateAsync: ()=>{},
+    setRandomizationEnabledAsync: ()=>{},
+    setRandomizationSettingsAsyn: ()=>{},
+    toggleChannelMutedAsync: ()=>{},
+    resetChannelAsync: ()=>{},
+  };
 }
 
 const AmbientifySoundEngine = {
@@ -66,11 +93,16 @@ const AmbientifySoundEngine = {
   getCurrentTimerValue(): string {
     return NativeModules.ASoundEngine.getCurrentTimerValue();
   },
-  init() {
+  install(){
     install()
   },
-  isReady(): boolean {
-    return getInstance()?.isReady() || false;
+  init() {
+    return NativeModules.ASoundEngine.initEngine()
+  },
+  isRunning(): boolean {
+    //@ts-ignore
+    if(global.__AmbientifySoundEngine == null) return false
+    return getInstance()?.isRunning() || false;
   },
   nChannels(): number {
     return getInstance()?.nChannels();

@@ -60,7 +60,7 @@ namespace ambientify {
 
         if (soundEngine) {
             if (propName == "isReady") {
-                return {soundEngine->isEngineReady};
+                return {soundEngine->isEngineRunning};
             }
 
             if (propName == "nChannels") {

@@ -19,10 +19,7 @@ import com.ambientifysoundengine.EngineModule.Companion.STATUS_NOTIF_CONTENT
 import com.ambientifysoundengine.EngineModule.Companion.STATUS_NOTIF_ISPLAYING
 import com.ambientifysoundengine.EngineModule.Companion.STATUS_NOTIF_TIMER_VAL
 import com.ambientifysoundengine.RemoteControlReceiver.Companion.createBroadcastIntent
-import com.facebook.react.bridge.RuntimeExecutor
 import com.facebook.react.modules.core.DeviceEventManagerModule
-import com.facebook.react.turbomodule.core.CallInvokerHolderImpl
-import com.facebook.soloader.SoLoader
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.onCompletion
 import org.fmod.FMOD
@@ -94,6 +91,8 @@ class EngineService : Service() {
 
   private external fun toggleMaster(): Boolean
 
+  private external fun startEngine(): Boolean
+
   inner class LocalBinder : Binder() {
     fun getService(): EngineService = this@EngineService
   }
@@ -159,7 +158,7 @@ class EngineService : Service() {
           }
         }
 
-        startEngine()
+        startService()
       }
       ACTION_UPDATE_NOTIFICATION -> {
         if (intent.hasExtra(STATUS_NOTIF_ISPLAYING)) {
@@ -207,22 +206,10 @@ class EngineService : Service() {
     super.onDestroy()
   }
 
-  private fun loadLibs() {
-    try {
-      for (lib in BuildConfig.FMOD_LIBS) {
-        SoLoader.loadLibrary(lib)
-      }
-      SoLoader.loadLibrary("ambientify-sound-engine")
-      FMOD.init(this)
-      Log.d(LOG_TAG, "Installing JSI bindings...")
-      EngineBridge.instance.install(StateSingleton.reactContext)
-    } catch (exception: Exception) {
-      Log.e(LOG_TAG, "Exception trying to load native libs: ", exception)
-    }
-  }
-
-  private fun startEngine() {
+  private fun startService() {
     isServiceRunning = true
+    FMOD.init(this)
+    startEngine()
     // we need this lock so our service gets not affected by Doze Mode
     wakeLock =
       (getSystemService(Context.POWER_SERVICE) as PowerManager).run {
@@ -230,9 +217,7 @@ class EngineService : Service() {
           acquire(8 * 60 * 60 * 1000L /*8 hours*/)
         }
       }
-    serviceScope.launch {
-      loadLibs()
-    }
+    // init sound engine
   }
 
   private fun buildNotification(contentText: String, bitMap: Bitmap): Notification {

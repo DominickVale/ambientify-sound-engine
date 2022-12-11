@@ -91,9 +91,8 @@ namespace ambientify {
         tpool = std::make_shared<ThreadPool>(1);
         soundEngine = SoundEngine::GetInstance(jniEnv, jvm);
 
-
-        auto isReady = HOSTFN("isReady", 0) {
-            return {soundEngine->isEngineReady};
+        auto isRunning = HOSTFN("isRunning", 0) {
+            return {soundEngine->isEngineRunning};
           });
 
         auto nChannels = HOSTFN("nChannels", 0) {
@@ -350,7 +349,7 @@ namespace ambientify {
         auto getSerializedState = HOSTFN_ASYNC("getSerializedStateAsync", 0) {
              auto fn = [&, promise = std::move(promise)]() {
                  invoker->invokeAsync([&, promise]() {
-                     if (SoundEngine::isEngineReady) {
+                     if (SoundEngine::isEngineRunning) {
                          if (!SoundEngine::channels.empty()) {
                              auto jsiState = jsi::Object(rt);
                              auto array = jsi::Array(rt, SoundEngine::channels.size());
@@ -477,7 +476,7 @@ namespace ambientify {
         });
 
         jsi::Object module = jsi::Object(rt);
-        module.setProperty(rt, "isReady", std::move(isReady));
+        module.setProperty(rt, "isRunning", std::move(isRunning));
         module.setProperty(rt, "nChannels", std::move(nChannels));
 		module.setProperty(rt, "createChannelAsync", std::move(createChannel));
         module.setProperty(rt, "setStatusAsync", std::move(setStatus));
@@ -499,14 +498,7 @@ namespace ambientify {
 
 		rt.global().setProperty(rt, "__AmbientifySoundEngine", std::move(module));
 
-        LOG_DEBUG("_AmbientifySoundEngine jsi bindings installed, notifying JS...");
-        jclass clazz = jniEnv->FindClass("com/ambientifysoundengine/EngineService");
-        jmethodID methodId = jniEnv->GetStaticMethodID(clazz, "bindNotifyJS", "()V");
-        if (methodId == nullptr) {
-            LOG_ERR("notifyJS native lambda -> methodId is null");
-        } else {
-            jniEnv->CallStaticVoidMethod(clazz, methodId);
-        }
+        LOG_DEBUG("_AmbientifySoundEngine jsi bindings installed");
     }
 
 }
