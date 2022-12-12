@@ -60,14 +60,14 @@ std::shared_ptr<ambientify::EngineChannel> getChannelById(int channelId) {
 void ambientify::SoundEngine::update() {
     while (!_stopped) {
         if (env) {
-            if (!isEngineReady) {
+            if (!isEngineRunning) {
                 const auto error = jvm->AttachCurrentThread( &env, nullptr);
                 if (error) {
                     LOG_ERR("Failed to attach thread to JVM. Error: %d", error);
                     throw commons::ASoundEngineException(fmt::format("Failed to attach thread to JVM. Error: {}", error));
                     return;
                 }
-                isEngineReady = true;
+                isEngineRunning = true;
             }
             result = system->update();
             ERRCHECK(result);
@@ -81,38 +81,6 @@ void ambientify::SoundEngine::update() {
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
-}
-
-ambientify::SoundEngine::SoundEngine(JNIEnv *env, JavaVM *javaVm): env(env), jvm(javaVm) {
-//    result = FMOD::Debug_Initialize(
-//            FMOD_DEBUG_LEVEL_LOG |
-//            FMOD_DEBUG_TYPE_MEMORY |
-//            FMOD_DEBUG_TYPE_FILE |
-//            FMOD_DEBUG_TYPE_CODEC |
-//            FMOD_DEBUG_TYPE_TRACE |
-//            FMOD_DEBUG_DISPLAY_TIMESTAMPS |
-//            FMOD_DEBUG_DISPLAY_LINENUMBERS |
-//            FMOD_DEBUG_DISPLAY_THREAD  ,FMOD_DEBUG_MODE_TTY,  0, 0);
-    result = FMOD::System_Create(&system);
-    ERRCHECK(result);;
-    result = system->setSoftwareFormat(24000, FMOD_SPEAKERMODE_STEREO, 2);
-    ERRCHECK(result);;
-
-    result = system->init(constants::MAX_CHANNELS * 2, FMOD_INIT_NORMAL, nullptr);
-    ERRCHECK(result);
-    FMOD::ChannelGroup *masterGroup;
-    result = system->getMasterChannelGroup(&masterGroup);
-    ERRCHECK(result);
-    result = masterGroup->setVolume(1.0f);
-    ERRCHECK(result);
-    std::thread updateThread(&SoundEngine::update, this);
-    updateThread.detach();
-    LOG_DEBUG("SoundEngine initialized");
-}
-
-ambientify::SoundEngine::~SoundEngine() {
-    _stopped = true;
-    system->release();
 }
 
 // @todo: refactor, dry up
@@ -271,11 +239,11 @@ double ambientify::SoundEngine::getMasterVolume() {
 extern "C"
 JNIEXPORT jboolean JNICALL
 Java_com_ambientifysoundengine_EngineService_toggleMaster(JNIEnv *env, jobject thiz) {
-    if (ambientify::SoundEngine::isEngineReady) {
+    if (ambientify::SoundEngine::isEngineRunning) {
         //jvm param not needed
-        std::shared_ptr<ambientify::SoundEngine> engine = ambientify::SoundEngine::GetInstance(env,
-                                                                                               nullptr);
+        std::shared_ptr<ambientify::SoundEngine> engine = ambientify::SoundEngine::GetInstance(env, nullptr);
         bool noneLoaded = true;
+        engine->jvm->AttachCurrentThread(&env, nullptr);
         const auto isPlaying = std::any_of(
                 engine->channels.begin(),
                 engine->channels.end(),
@@ -293,4 +261,66 @@ Java_com_ambientifysoundengine_EngineService_toggleMaster(JNIEnv *env, jobject t
         }
     }
     return false;
+}
+
+ambientify::SoundEngine::SoundEngine(JNIEnv *jniEnv, JavaVM *javaVm): env(jniEnv), jvm(javaVm) { }
+
+bool ambientify::SoundEngine::init(JNIEnv *jniEnv){
+    this->env = jniEnv;
+//    result = FMOD::Debug_Initialize(
+//            FMOD_DEBUG_LEVEL_LOG |
+//            FMOD_DEBUG_TYPE_MEMORY |
+//            FMOD_DEBUG_TYPE_FILE |
+//            FMOD_DEBUG_TYPE_CODEC |
+//            FMOD_DEBUG_TYPE_TRACE |
+//            FMOD_DEBUG_DISPLAY_TIMESTAMPS |
+//            FMOD_DEBUG_DISPLAY_LINENUMBERS |
+//            FMOD_DEBUG_DISPLAY_THREAD  ,FMOD_DEBUG_MODE_TTY,  0, 0);
+    try {
+        jvm->AttachCurrentThread(&jniEnv, nullptr);
+        result = FMOD::System_Create(&system);
+        ERRCHECK(result);
+        result = system->setSoftwareFormat(24000, FMOD_SPEAKERMODE_STEREO, 2);
+        ERRCHECK(result);
+
+        result = system->init(constants::MAX_CHANNELS * 2, FMOD_INIT_NORMAL, nullptr);
+        ERRCHECK(result);
+        FMOD::ChannelGroup *masterGroup;
+        result = system->getMasterChannelGroup(&masterGroup);
+        ERRCHECK(result);
+        result = masterGroup->setVolume(1.0f);
+        ERRCHECK(result);
+        std::thread updateThread(&SoundEngine::update, this);
+        updateThread.detach();
+        LOG_DEBUG("SoundEngine initialized");
+        return true;
+    } catch (const std::exception &e) {
+        LOG_ERR("FMOD error: %s", e.what());
+        return false;
+    }
+}
+
+ambientify::SoundEngine::~SoundEngine() {
+    _stopped = true;
+    system->release();
+}
+
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_com_ambientifysoundengine_EngineService_startEngine(JNIEnv *env, jobject thiz) {
+    if(ambientify::SoundEngine::isEngineRunning) return true;
+    std::shared_ptr<ambientify::SoundEngine> engine = ambientify::SoundEngine::GetInstance(env, nullptr);
+    const auto result = engine->init(env);
+    if(result) {
+        LOG_DEBUG("Notifying java");
+        jclass clazz = env->FindClass("com/ambientifysoundengine/EngineService");
+        jmethodID methodId = env->GetStaticMethodID(clazz, "bindNotifyJS", "()V");
+        if (methodId == nullptr) {
+            LOG_ERR("notifyJS native lambda -> methodId is null");
+        } else {
+            env->CallStaticVoidMethod(clazz, methodId);
+        }
+    }
+    return result;
 }

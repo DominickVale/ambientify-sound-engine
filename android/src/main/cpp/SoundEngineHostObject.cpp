@@ -60,7 +60,7 @@ namespace ambientify {
 
         if (soundEngine) {
             if (propName == "isReady") {
-                return {soundEngine->isEngineReady};
+                return {soundEngine->isEngineRunning};
             }
 
             if (propName == "nChannels") {
@@ -132,7 +132,7 @@ namespace ambientify {
                                size_t count) -> jsi::Value {
                             return a_utils::createPromiseAsJSIValue(
                                     runtime, [&](jsi::Runtime &runtime, std::shared_ptr<a_utils::Promise> promise) {
-                                        if (count < 1) jsi::detail::throwJSError(runtime, "No valid path specified.");
+                                        if (count < 1) throw jsi::JSError(runtime, "No valid path specified.");
                                         std::string path;
                                         bool shouldPlay = false;
                                         if (arguments[0].isString()) {
@@ -568,7 +568,7 @@ namespace ambientify {
                                             tpool->enqueue(fn);
 
                                         } catch (const commons::ASoundEngineException &e) {
-                                            jsi::detail::throwJSError(runtime, e.what());
+                                            throw jsi::JSError(runtime, e.what());
                                         }
                                     });
                         });

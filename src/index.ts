@@ -42,17 +42,47 @@ export type AmbientifySoundState = {
 
 
 function install() {
-  if (!NativeModules.ASoundEngine) {
-    console.error(LOG_ID + "NativeModules.ASoundEngine is undefined (module not loaded?)");
+  if (!NativeModules?.ASoundEngine) {
+    console.error(LOG_ID + "ASoundEngine is undefined (module not loaded?)");
     return
   }
-  console.log(LOG_ID + "Installing SoundEngine");
-  NativeModules.ASoundEngine.install();
+  //@ts-ignore
+  if (global.__AmbientifySoundEngine == null) {
+    console.log(LOG_ID + "Installing SoundEngine");
+    NativeModules.ASoundEngine.install();
+    //@ts-ignore
+    console.log(LOG_ID + "global: ", global, global.__AmbientifySoundEngine);
+  } else {
+    console.error(LOG_ID + "already loaded");
+    return
+  }
 }
+// install()
 
 function getInstance() {
+  console.log("getInstance()", global);
   // @ts-ignore
-  return global._AmbientifySoundEngine;
+  return global.__AmbientifySoundEngine || {
+    isRunning: ()=>{},
+    nChannels: ()=>{},
+    reateChannelAsync: ()=>{},
+    etStatusAsync: ()=>{},
+    soadChannelAsync: ()=>{},
+    unloadChannelAsync: ()=>{},
+    playChannelAsync: ()=>{},
+    playAllAsync: ()=>{},
+    stopAllAsync: ()=>{},
+    stopChannelAsync: ()=>{},
+    setCrossfadingAsync: ()=>{},
+    setChannelVolumeAsync: ()=>{},
+    setMasterVolumeAsync: ()=>{},
+    toggleChannelPlaybackAsync: ()=>{},
+    getSerializedStateAsync: ()=>{},
+    setRandomizationEnabledAsync: ()=>{},
+    setRandomizationSettingsAsyn: ()=>{},
+    toggleChannelMutedAsync: ()=>{},
+    resetChannelAsync: ()=>{},
+  };
 }
 
 const AmbientifySoundEngine = {
@@ -65,22 +95,27 @@ const AmbientifySoundEngine = {
   getCurrentTimerValue(): string {
     return NativeModules.ASoundEngine.getCurrentTimerValue();
   },
-  init() {
+  install(){
     install()
   },
-  isReady(): boolean {
-    return getInstance()?.isReady || false;
+  init() {
+    return NativeModules.ASoundEngine.initEngine()
+  },
+  isRunning(): boolean {
+    //@ts-ignore
+    if(global.__AmbientifySoundEngine == null) return false
+    return getInstance()?.isRunning() || false;
   },
   nChannels(): number {
-    return getInstance().nChannels;
+    return getInstance()?.nChannels();
   },
   async stopAllAsync(): Promise<AmbientifySoundState> {
-    await getInstance().stopAllAsync();
-    return getInstance().getSerializedStateAsync();
+    await getInstance()?.stopAllAsync();
+    return getInstance()?.getSerializedStateAsync();
   },
   async playAllAsync(): Promise<AmbientifySoundState> {
-    await getInstance().playAllAsync();
-    return getInstance().getSerializedStateAsync();
+    await getInstance()?.playAllAsync();
+    return getInstance()?.getSerializedStateAsync();
   },
   /*
     @return number the index of the newly created channel
@@ -89,7 +124,7 @@ const AmbientifySoundEngine = {
     soundPath?: string,
     shouldPlay: boolean = false
   ): Promise<void> {
-    return getInstance().createChannelAsync(soundPath, shouldPlay);
+    return getInstance()?.createChannelAsync(soundPath, shouldPlay);
   },
   async loadChannelAsync(
     channelId: number,
@@ -97,59 +132,59 @@ const AmbientifySoundEngine = {
   ): Promise<AmbientifyChannelState> {
     console.log("Loading channel, ", channelId, soundPath);
 
-    return getInstance().loadChannelAsync(channelId, soundPath);
+    return getInstance()?.loadChannelAsync(channelId, soundPath);
   },
   async unloadChannelAsync(channelId: number): Promise<AmbientifyChannelState> {
-    return getInstance().unloadChannelAsync(channelId);
+    return getInstance()?.unloadChannelAsync(channelId);
   },
   async resetChannelAsync(channelId: number): Promise<AmbientifyChannelState> {
-    return getInstance().resetChannelAsync(channelId);
+    return getInstance()?.resetChannelAsync(channelId);
   },
   async toggleChannelPlaybackAsync(channelID: number): Promise<boolean> {
-    return getInstance().toggleChannelPlaybackAsync(channelID);
+    return getInstance()?.toggleChannelPlaybackAsync(channelID);
   },
   async toggleChannelMutedAsync(channelID: number): Promise<boolean> {
-    return getInstance().toggleChannelMutedAsync(channelID);
+    return getInstance()?.toggleChannelMutedAsync(channelID);
   },
   // setChannelMuted(channelID: number, muted: boolean) {
-  //   return getInstance().setChannelMuted(channelID, muted);
+  //   return getInstance()?.setChannelMuted(channelID, muted);
   // },
   async playAsync(channelId: number): Promise<boolean> {
-    return getInstance().playChannelAsync(channelId);
+    return getInstance()?.playChannelAsync(channelId);
   },
   async stopAsync(channelId: number): Promise<boolean> {
-    return getInstance().stopChannelAsync(channelId);
+    return getInstance()?.stopChannelAsync(channelId);
   },
   async setRandomizationEnabledAsync(channelId: number, enabled: boolean): Promise<AmbientifyChannelState> {
-    return getInstance().setRandomizationEnabledAsync(channelId, enabled);
+    return getInstance()?.setRandomizationEnabledAsync(channelId, enabled);
   },
   async setRandomizationSettingsAsync(
     channelId: number,
     newSettings: Partial<AmbientifyChannelRandomizationSettings>
   ): Promise<AmbientifyChannelState> {
-    return getInstance().setRandomizationSettingsAsync(channelId, newSettings);
+    return getInstance()?.setRandomizationSettingsAsync(channelId, newSettings);
   },
   async setCrossfadingAsync(channelId: number, enabled: boolean): Promise<boolean> {
-    return getInstance().setCrossfadingAsync(channelId, enabled);
+    return getInstance()?.setCrossfadingAsync(channelId, enabled);
   },
   async setChannelVolumeAsync(channelID: number, volume: number, pan?: number): Promise<AmbientifyChannelState> {
     //@todo replace -2 with a different overridden method
-    return getInstance().setChannelVolumeAsync(channelID, volume, pan || -2);
+    return getInstance()?.setChannelVolumeAsync(channelID, volume, pan || -2);
   },
   async setMasterVolumeAsync(volume: number): Promise<number> {
-    return getInstance().setMasterVolumeAsync(volume);
+    return getInstance()?.setMasterVolumeAsync(volume);
   },
   async getSerializedStateAsync(): Promise<AmbientifySoundState> {
-    return getInstance().getSerializedStateAsync();
+    return getInstance()?.getSerializedStateAsync();
   },
   async setStatusAsync(
     channelId: number,
     newStatus: Partial<Omit<AmbientifyChannelState, 'id'>>
   ): Promise<AmbientifyChannelState> {
-    return getInstance().setStatusAsync(channelId, newStatus);
+    return getInstance()?.setStatusAsync(channelId, newStatus);
   },
   test(): 'OK' | undefined {
-    return getInstance().test();
+    return getInstance()?.test();
   },
 };
 

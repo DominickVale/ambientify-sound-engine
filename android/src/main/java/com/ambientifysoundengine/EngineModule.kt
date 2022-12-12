@@ -12,6 +12,7 @@ import androidx.core.app.NotificationManagerCompat
 import com.ambientifysoundengine.RemoteControlReceiver.Companion.createBroadcastIntent
 import com.facebook.react.bridge.*
 import com.facebook.react.module.annotations.ReactModule
+import com.facebook.soloader.SoLoader
 import org.fmod.FMOD
 
 
@@ -49,7 +50,22 @@ class EngineModule(private val reactContext: ReactApplicationContext) :
   override fun getName() = NAME
 
   @ReactMethod(isBlockingSynchronousMethod = true)
-  fun install() {
+  fun install(): Boolean {
+    try {
+      for (lib in BuildConfig.FMOD_LIBS) {
+        System.loadLibrary(lib)
+      }
+      System.loadLibrary("ambientify-sound-engine")
+      Log.d(NAME, "Installing JSI bindings...")
+      EngineBridge.instance.install(reactApplicationContext);
+    } catch (exception: Exception) {
+      Log.e(NAME, "Exception trying to load native libs: ", exception)
+    }
+    return true
+  }
+
+  @ReactMethod(isBlockingSynchronousMethod = true)
+  fun initEngine() {
     if (!EngineService.isRunning()) {
       Log.d(NAME, "Launching service intent...")
       val intent = Intent(reactContext, EngineService::class.java)
