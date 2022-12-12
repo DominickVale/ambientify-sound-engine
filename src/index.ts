@@ -50,8 +50,6 @@ function install() {
   if (global.__AmbientifySoundEngine == null) {
     console.log(LOG_ID + "Installing SoundEngine");
     NativeModules.ASoundEngine.install();
-    //@ts-ignore
-    console.log(LOG_ID + "global: ", global, global.__AmbientifySoundEngine);
   } else {
     console.error(LOG_ID + "already loaded");
     return
@@ -60,7 +58,6 @@ function install() {
 // install()
 
 function getInstance() {
-  console.log("getInstance()", global);
   // @ts-ignore
   return global.__AmbientifySoundEngine || {
     isRunning: ()=>{},
