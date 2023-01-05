@@ -67,7 +67,6 @@ class EngineModule(private val reactContext: ReactApplicationContext) :
   @ReactMethod(isBlockingSynchronousMethod = true)
   fun initEngine() {
     if (!EngineService.isRunning()) {
-      Log.d(NAME, "Launching service intent...")
       val intent = Intent(reactContext, EngineService::class.java)
       intent.action = EngineService.ACTION_START
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -77,6 +76,16 @@ class EngineModule(private val reactContext: ReactApplicationContext) :
       }
     }
     Log.w(NAME, "Service already running, not launching")
+  }
+
+  @ReactMethod(isBlockingSynchronousMethod = true)
+  fun stopEngine() {
+    if (EngineService.isRunning()) {
+      val intent = Intent(reactContext, EngineService::class.java)
+      intent.action = EngineService.ACTION_STOP
+      reactContext.startService(intent)
+    }
+    Log.w(NAME, "Service not running, aborting...")
   }
 
   @ReactMethod(isBlockingSynchronousMethod = true)

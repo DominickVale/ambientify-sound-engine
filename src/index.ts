@@ -100,6 +100,9 @@ const AmbientifySoundEngine = {
   init() {
     return NativeModules.ASoundEngine.initEngine();
   },
+  stop() {
+    return NativeModules.ASoundEngine.stopEngine();
+  },
   isRunning(): boolean {
     //@ts-ignore
     if (global.__AmbientifySoundEngine == null) return false;
