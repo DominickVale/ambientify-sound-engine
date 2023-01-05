@@ -1,12 +1,11 @@
 import { NativeModules } from 'react-native';
 
-
-const LOG_ID = '[Ambientify-sound-engine]: '
+const LOG_ID = '[Ambientify-sound-engine]: ';
 
 export type AmbientifyNotificationState = {
-  isPlaying: boolean,
-  contentText: string
-}
+  isPlaying: boolean;
+  contentText: string;
+};
 
 export type AmbientifyChannelRandomizationSettings = {
   times: number;
@@ -33,74 +32,77 @@ export type AmbientifyChannelState = {
   noUnload: boolean;
   randomizationEnabled: boolean;
   rSettings: AmbientifyChannelRandomizationSettings;
-}
+};
 
 export type AmbientifySoundState = {
   masterVolume: number;
   sounds: Array<AmbientifyChannelState>;
 };
 
-
 function install() {
   if (!NativeModules?.ASoundEngine) {
-    console.error(LOG_ID + "ASoundEngine is undefined (module not loaded?)");
-    return
+    console.error(LOG_ID + 'ASoundEngine is undefined (module not loaded?)');
+    return;
   }
   //@ts-ignore
   if (global.__AmbientifySoundEngine == null) {
-    console.log(LOG_ID + "Installing SoundEngine");
+    console.log(LOG_ID + 'Installing SoundEngine');
     NativeModules.ASoundEngine.install();
   } else {
-    console.error(LOG_ID + "already loaded");
-    return
+    console.error(LOG_ID + 'already loaded');
+    return;
   }
 }
 // install()
 
 function getInstance() {
-  // @ts-ignore
-  return global.__AmbientifySoundEngine || {
-    isRunning: ()=>{},
-    nChannels: ()=>{},
-    reateChannelAsync: ()=>{},
-    etStatusAsync: ()=>{},
-    soadChannelAsync: ()=>{},
-    unloadChannelAsync: ()=>{},
-    playChannelAsync: ()=>{},
-    playAllAsync: ()=>{},
-    stopAllAsync: ()=>{},
-    stopChannelAsync: ()=>{},
-    setCrossfadingAsync: ()=>{},
-    setChannelVolumeAsync: ()=>{},
-    setMasterVolumeAsync: ()=>{},
-    toggleChannelPlaybackAsync: ()=>{},
-    getSerializedStateAsync: ()=>{},
-    setRandomizationEnabledAsync: ()=>{},
-    setRandomizationSettingsAsyn: ()=>{},
-    toggleChannelMutedAsync: ()=>{},
-    resetChannelAsync: ()=>{},
-  };
+  return (
+    // @ts-ignore
+    global.__AmbientifySoundEngine || {
+      isRunning: () => {},
+      nChannels: () => {},
+      reateChannelAsync: () => {},
+      etStatusAsync: () => {},
+      soadChannelAsync: () => {},
+      unloadChannelAsync: () => {},
+      playChannelAsync: () => {},
+      playAllAsync: () => {},
+      stopAllAsync: () => {},
+      stopChannelAsync: () => {},
+      setCrossfadingAsync: () => {},
+      setChannelVolumeAsync: () => {},
+      setMasterVolumeAsync: () => {},
+      toggleChannelPlaybackAsync: () => {},
+      getSerializedStateAsync: () => {},
+      setRandomizationEnabledAsync: () => {},
+      setRandomizationSettingsAsyn: () => {},
+      toggleChannelMutedAsync: () => {},
+      resetChannelAsync: () => {},
+    }
+  );
 }
 
 const AmbientifySoundEngine = {
-  updateNotification(newNotificationState: Partial<AmbientifyNotificationState>) {
+  updateNotification(
+    newNotificationState: Partial<AmbientifyNotificationState>
+  ) {
     NativeModules.ASoundEngine.updateNotification(newNotificationState);
   },
-  setTimerOptions(value: number){
+  setTimerOptions(value: number) {
     return NativeModules.ASoundEngine.setTimerOptions(value);
   },
   getCurrentTimerValue(): string {
     return NativeModules.ASoundEngine.getCurrentTimerValue();
   },
-  install(){
-    install()
+  install() {
+    install();
   },
   init() {
-    return NativeModules.ASoundEngine.initEngine()
+    return NativeModules.ASoundEngine.initEngine();
   },
   isRunning(): boolean {
     //@ts-ignore
-    if(global.__AmbientifySoundEngine == null) return false
+    if (global.__AmbientifySoundEngine == null) return false;
     return getInstance()?.isRunning() || false;
   },
   nChannels(): number {
@@ -127,7 +129,7 @@ const AmbientifySoundEngine = {
     channelId: number,
     soundPath: string
   ): Promise<AmbientifyChannelState> {
-    console.log("Loading channel, ", channelId, soundPath);
+    console.log('Loading channel, ', channelId, soundPath);
 
     return getInstance()?.loadChannelAsync(channelId, soundPath);
   },
@@ -152,7 +154,10 @@ const AmbientifySoundEngine = {
   async stopAsync(channelId: number): Promise<boolean> {
     return getInstance()?.stopChannelAsync(channelId);
   },
-  async setRandomizationEnabledAsync(channelId: number, enabled: boolean): Promise<AmbientifyChannelState> {
+  async setRandomizationEnabledAsync(
+    channelId: number,
+    enabled: boolean
+  ): Promise<AmbientifyChannelState> {
     return getInstance()?.setRandomizationEnabledAsync(channelId, enabled);
   },
   async setRandomizationSettingsAsync(
@@ -161,10 +166,17 @@ const AmbientifySoundEngine = {
   ): Promise<AmbientifyChannelState> {
     return getInstance()?.setRandomizationSettingsAsync(channelId, newSettings);
   },
-  async setCrossfadingAsync(channelId: number, enabled: boolean): Promise<boolean> {
+  async setCrossfadingAsync(
+    channelId: number,
+    enabled: boolean
+  ): Promise<boolean> {
     return getInstance()?.setCrossfadingAsync(channelId, enabled);
   },
-  async setChannelVolumeAsync(channelID: number, volume: number, pan?: number): Promise<AmbientifyChannelState> {
+  async setChannelVolumeAsync(
+    channelID: number,
+    volume: number,
+    pan?: number
+  ): Promise<AmbientifyChannelState> {
     //@todo replace -2 with a different overridden method
     return getInstance()?.setChannelVolumeAsync(channelID, volume, pan || -2);
   },
