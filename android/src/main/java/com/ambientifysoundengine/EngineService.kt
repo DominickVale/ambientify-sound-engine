@@ -3,8 +3,7 @@ package com.ambientifysoundengine
 import android.app.*
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
@@ -52,7 +51,10 @@ class EngineService : Service() {
     @JvmStatic
     fun notificationTogglePlayNotifyJS(isNowPlaying: Boolean) {
       StateSingleton.reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-        ?.emit("ambientify.engine.notifications.togglePlayback", isNowPlaying) ?: Log.e(LOG_TAG, "notificationTogglePlayNotifyJS() failed to emit event")
+        ?.emit("ambientify.engine.notifications.togglePlayback", isNowPlaying) ?: Log.e(
+        LOG_TAG,
+        "notificationTogglePlayNotifyJS() failed to emit event"
+      )
     }
   }
 
@@ -111,12 +113,14 @@ class EngineService : Service() {
         Log.e(LOG_TAG, "onStartCommand: action is null")
         return START_NOT_STICKY
       }
+
       ACTION_STOP -> stopService()
       ACTION_PLAYPAUSE -> {
         isEnginePlaying = toggleMaster()
         notificationTogglePlayNotifyJS(isEnginePlaying)
         updateNotificationActions()
       }
+
       ACTION_START_TIMER -> {
         if (!intent.hasExtra(STATUS_NOTIF_TIMER_VAL)) {
           Log.e(LOG_TAG, "onStartCommand: $STATUS_NOTIF_TIMER_VAL not set for $ACTION_START_TIMER")
@@ -134,6 +138,7 @@ class EngineService : Service() {
         }
         countdownJob = serviceScope.launch { observeCountdownTimer(countdownTimer) }
       }
+
       ACTION_STOP_TIMER -> {
         if (this::countdownTimer.isInitialized) {
           countdownJob.cancel()
@@ -141,12 +146,11 @@ class EngineService : Service() {
           updateNotificationText("")
         }
       }
+
       ACTION_START -> {
         notificationJob = serviceScope.launch {
-          val bitMap: Bitmap = BitmapFactory.decodeResource(resources, R.drawable.image)
-
           withContext(Dispatchers.Main) {
-            val notification = buildNotification(currentNotificationText, bitMap)
+            val notification = buildNotification(currentNotificationText)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
               if (mNotificationManager.areNotificationsEnabled())
                 startForeground(EngineModule.NOTIF_ID, notification)
@@ -160,6 +164,7 @@ class EngineService : Service() {
 
         startService()
       }
+
       ACTION_UPDATE_NOTIFICATION -> {
         if (intent.hasExtra(STATUS_NOTIF_ISPLAYING)) {
           isEnginePlaying = intent.getBooleanExtra(STATUS_NOTIF_ISPLAYING, false)
@@ -167,9 +172,9 @@ class EngineService : Service() {
         }
         if (intent.hasExtra(STATUS_NOTIF_CONTENT)) {
           val contentText = intent.getStringExtra(STATUS_NOTIF_CONTENT)
-          if(contentText != null){
-            currentNotificationText = if(contentText == "") "No sound loaded..."
-              else contentText
+          if (contentText != null) {
+            currentNotificationText = if (contentText == "") "No sound loaded..."
+            else contentText
           }
           updateNotificationText()
         }
@@ -220,10 +225,13 @@ class EngineService : Service() {
     // init sound engine
   }
 
-  private fun buildNotification(contentText: String, bitMap: Bitmap): Notification {
+  private fun buildNotification(contentText: String): Notification {
+    // Notification should use the primary color (material 3 dynamic) as background color.
+    // Don't use image for largeIcon. Only use color
+
+    // use main application's mipmap.ic_launcher as small icon
     return mNotificationBuilder.apply {
-      setSmallIcon(R.mipmap.ic_launcher)
-      setLargeIcon(bitMap)
+      setSmallIcon(R.mipmap.ic_launcher_foreground)
       setSilent(true)
       setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
       priority = NotificationCompat.PRIORITY_HIGH
