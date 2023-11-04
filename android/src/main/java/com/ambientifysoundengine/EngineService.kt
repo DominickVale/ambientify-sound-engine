@@ -3,7 +3,7 @@ package com.ambientifysoundengine
 import android.app.*
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
+import android.graphics.BitmapFactory
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
@@ -74,7 +74,7 @@ class EngineService : Service() {
   private val stopBroadcast by lazy { createBroadcastIntent(this@EngineService, ACTION_STOP, null) }
 
   private val mediaStyle: MediaStyle by lazy {
-    val session = MediaSessionCompat(this, "tag").sessionToken
+    val session = MediaSessionCompat(this, "Ambientify Service").sessionToken
     MediaStyle().setMediaSession(session)
   }
   private val mainActivityIntent by lazy {
@@ -159,10 +159,10 @@ class EngineService : Service() {
             } else {
               startForeground(EngineModule.NOTIF_ID, notification)
             }
+
+            startEngineService()
           }
         }
-
-        startService()
       }
 
       ACTION_UPDATE_NOTIFICATION -> {
@@ -211,7 +211,7 @@ class EngineService : Service() {
     super.onDestroy()
   }
 
-  private fun startService() {
+  private fun startEngineService() {
     isServiceRunning = true
     FMOD.init(this)
     startEngine()

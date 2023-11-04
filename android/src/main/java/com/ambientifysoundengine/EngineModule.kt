@@ -69,11 +69,8 @@ class EngineModule(private val reactContext: ReactApplicationContext) :
     if (!EngineService.isRunning()) {
       val intent = Intent(reactContext, EngineService::class.java)
       intent.action = EngineService.ACTION_START
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        reactContext.startForegroundService(intent)
-      } else {
-        reactContext.startService(intent)
-      }
+      reactContext.startForegroundService(intent)
+      return
     }
     Log.w(NAME, "Service already running, not launching")
   }
@@ -84,6 +81,7 @@ class EngineModule(private val reactContext: ReactApplicationContext) :
       val intent = Intent(reactContext, EngineService::class.java)
       intent.action = EngineService.ACTION_STOP
       reactContext.startService(intent)
+      return
     }
     Log.w(NAME, "Service not running, aborting...")
   }
@@ -91,7 +89,7 @@ class EngineModule(private val reactContext: ReactApplicationContext) :
   @ReactMethod(isBlockingSynchronousMethod = true)
   fun setTimerOptions(timerValue: Double) {
     val intent = Intent(reactContext, EngineService::class.java)
-    if(timerValue > 0) {
+    if (timerValue > 0) {
       intent.action = EngineService.ACTION_START_TIMER
       intent.putExtra(STATUS_NOTIF_TIMER_VAL, timerValue)
     } else {
@@ -107,7 +105,7 @@ class EngineModule(private val reactContext: ReactApplicationContext) :
   }
 
   @ReactMethod()
-  fun updateNotification(state: ReadableMap){
+  fun updateNotification(state: ReadableMap) {
     val intent = Intent(reactContext, EngineService::class.java)
     intent.action = EngineService.ACTION_UPDATE_NOTIFICATION
     intent.putExtra(STATUS_NOTIF_ISPLAYING, state.getBoolean(STATUS_NOTIF_ISPLAYING))
@@ -116,19 +114,18 @@ class EngineModule(private val reactContext: ReactApplicationContext) :
   }
 
   private fun createNotificationChannel() {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      val channel = NotificationChannel(
-        NOTIF_CH_ID,
-        NOTIF_CH_NAME,
-        NotificationManager.IMPORTANCE_HIGH
-      ).let {
-        it.description = "Ambientify Notification Channel"
-        it.enableLights(false)
-        it.setShowBadge(false)
-        it.lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-        it
-      }
-      mNotificationManager.createNotificationChannel(channel)
+    val channel = NotificationChannel(
+      NOTIF_CH_ID,
+      NOTIF_CH_NAME,
+      NotificationManager.IMPORTANCE_HIGH
+    ).let {
+      it.description = "Ambientify Notification Channel"
+      it.enableLights(false)
+      it.setShowBadge(false)
+      it.importance = NotificationManager.IMPORTANCE_HIGH
+      it.lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+      it
     }
+    mNotificationManager.createNotificationChannel(channel)
   }
 }
