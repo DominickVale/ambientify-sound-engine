@@ -142,6 +142,7 @@ android {
     extractHeaders
     extractJNI
   }
+    ndkVersion '23.1.7779620'
 }
 
 repositories {
@@ -221,10 +222,9 @@ dependencies {
   // noinspection GradleDynamicVersion
   api 'com.facebook.react:react-native:+'
 
+  extractHeaders("com.facebook.fbjni:fbjni:0.4.0:headers")
   //noinspection GradleDynamicVersion
-  extractHeaders("com.facebook.fbjni:fbjni:+:headers")
-  //noinspection GradleDynamicVersion
-  extractJNI("com.facebook.fbjni:fbjni:+")
+  extractJNI("com.facebook.fbjni:fbjni:0.4.0")
 
   implementation files(fmodApiRoot + '/core/lib/fmod.jar')
 
