@@ -431,7 +431,7 @@ void ambientify::EngineChannel::runNextRandomFrame() {
 
 void ambientify::EngineChannel::_generateRandomTimeframes() {
     const auto[times, minutes, pitchRange, volumeRange, panRange] = _rSettings;
-    const auto d = _durationMs / 1000; // duration in seconds
+    const float d = _durationMs / 1000.0; // duration in seconds
     const auto n = times; // times
     const auto t = minutes * 60; // max time in seconds
     const auto totalGapTime = t - d * n;
