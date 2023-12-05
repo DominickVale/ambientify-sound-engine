@@ -112,6 +112,10 @@ void ambientify::EngineChannel::play() {
     if (!_isLoaded || _isLoading) {
         throw ambientify::commons::ASoundEngineException("Can't play: sound is not yet loaded");
     }
+    if(randomizationEnabled){
+        _result = _fchannel->setVolume(0.0);
+        ERRCHECK(_result);
+    }
     _result = _fchannel->setPaused(false);
     ERRCHECK(_result);
     if (!isCrossfading && !_randomizationEnabled) setVolume(_volume, _pan);
@@ -417,7 +421,11 @@ void ambientify::EngineChannel::runNextRandomFrame() {
                 ERRCHECK(_result);
                 _result = _fchannel->setPitch(pitch);
                 ERRCHECK(_result);
-                play();
+                _result = _fchannel->setPaused(false);
+                ERRCHECK(_result);
+                _isPlaying = true;
+                _didJustPause = false;
+                neverStarted = false;
             }
             _currRandomTimeframe += 1;
         } else if (_randomizationEnabled) {
