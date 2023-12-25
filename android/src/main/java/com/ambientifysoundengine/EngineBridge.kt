@@ -11,7 +11,7 @@ class EngineBridge {
     )
 
     fun install(context: ReactContext) {
-        val jsContextPointer = context.javaScriptContextHolder.get()
+        val jsContextPointer = context.javaScriptContextHolder!!.get()
         val jsCallInvokerHolder = context.catalystInstance.jsCallInvokerHolder as CallInvokerHolderImpl
         val path = context.filesDir.absolutePath
         installNativeJsi(

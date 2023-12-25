@@ -3,6 +3,7 @@ package com.ambientifysoundengine
 import android.app.*
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
 import android.graphics.BitmapFactory
 import android.os.Binder
 import android.os.Build
@@ -152,8 +153,13 @@ class EngineService : Service() {
           withContext(Dispatchers.Main) {
             val notification = buildNotification(currentNotificationText)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-              if (mNotificationManager.areNotificationsEnabled())
-                startForeground(EngineModule.NOTIF_ID, notification)
+              if (mNotificationManager.areNotificationsEnabled()){
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                  startForeground(EngineModule.NOTIF_ID, notification)
+                } else {
+                  startForeground(EngineModule.NOTIF_ID, notification, FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+                }
+              }
               else
                 startService(Intent(this@EngineService, EngineService::class.java))
             } else {
